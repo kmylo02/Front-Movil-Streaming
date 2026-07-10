@@ -1,0 +1,109 @@
+// StreamManager Pro — Dark Theme
+:root {
+  --ion-background-color: #06060f;
+  --ion-background-color-rgb: 6, 6, 15;
+  --ion-text-color: #f1f5f9;
+  --ion-text-color-rgb: 241, 245, 249;
+
+  --ion-color-primary: #7c3aed;
+  --ion-color-primary-rgb: 124, 58, 237;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-shade: #6d32d1;
+  --ion-color-primary-tint: #8a4ef0;
+
+  --ion-color-secondary: #c026d3;
+  --ion-color-secondary-rgb: 192, 38, 211;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-shade: #a921ba;
+  --ion-color-secondary-tint: #c63cd8;
+
+  --ion-color-success: #10b981;
+  --ion-color-success-rgb: 16, 185, 129;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-shade: #0ea373;
+  --ion-color-success-tint: #28c08e;
+
+  --ion-color-warning: #f59e0b;
+  --ion-color-warning-rgb: 245, 158, 11;
+  --ion-color-warning-contrast: #000000;
+  --ion-color-warning-shade: #d88b0a;
+  --ion-color-warning-tint: #f6a823;
+
+  --ion-color-danger: #f43f5e;
+  --ion-color-danger-rgb: 244, 63, 94;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-shade: #d73753;
+  --ion-color-danger-tint: #f5526e;
+
+  --ion-color-dark: #0f0f1a;
+  --ion-color-dark-rgb: 15, 15, 26;
+  --ion-color-dark-contrast: #ffffff;
+  --ion-color-medium: rgba(241, 245, 249, 0.45);
+  --ion-color-light: rgba(255, 255, 255, 0.08);
+  --ion-color-light-contrast: #ffffff;
+
+  --ion-toolbar-background: #0f0f1a;
+  --ion-toolbar-border-color: rgba(255, 255, 255, 0.07);
+  --ion-tab-bar-background: #0f0f1a;
+  --ion-tab-bar-border-color: rgba(255, 255, 255, 0.07);
+  --ion-card-background: rgba(255, 255, 255, 0.04);
+  --ion-item-background: transparent;
+  --ion-border-color: rgba(255, 255, 255, 0.07);
+
+  --sm-violet: #7c3aed;
+  --sm-violet-lt: #a78bfa;
+  --sm-fuchsia: #c026d3;
+  --sm-amber: #f59e0b;
+  --sm-emerald: #10b981;
+  --sm-rose: #f43f5e;
+  --sm-ink: #06060f;
+  --sm-ink2: #0f0f1a;
+  --sm-text: #f1f5f9;
+  --sm-text2: rgba(241, 245, 249, 0.65);
+  --sm-text3: rgba(241, 245, 249, 0.35);
+  --sm-border: rgba(255, 255, 255, 0.07);
+  --sm-card: rgba(255, 255, 255, 0.04);
+}
+
+// Global Ionic overrides
+ion-content { --background: #06060f; }
+ion-header { --background: #0f0f1a; box-shadow: none; }
+ion-toolbar { --background: #0f0f1a; --color: #f1f5f9; --border-color: rgba(255,255,255,0.07); }
+ion-title { --color: #f1f5f9; font-weight: 700; letter-spacing: -0.02em; }
+ion-tab-bar { --background: #0f0f1a; border-top: 1px solid rgba(255,255,255,0.07); }
+ion-tab-button { --color: rgba(255,255,255,0.4); --color-selected: #a78bfa; }
+ion-item { --background: transparent; --color: #f1f5f9; --border-color: rgba(255,255,255,0.07); }
+ion-list { --background: transparent; background: transparent; }
+ion-card {
+  --background: rgba(255,255,255,0.04);
+  --color: #f1f5f9;
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: none;
+  border-radius: 14px;
+}
+ion-modal { --background: #0f0f1a; }
+ion-searchbar {
+  --background: rgba(255,255,255,0.06);
+  --color: #f1f5f9;
+  --placeholder-color: rgba(255,255,255,0.3);
+  --icon-color: rgba(255,255,255,0.3);
+  --border-radius: 10px;
+  padding: 8px 16px;
+}
+ion-segment {
+  --background: rgba(255,255,255,0.05);
+  margin: 0 16px;
+}
+ion-segment-button {
+  --color: rgba(255,255,255,0.4);
+  --color-checked: #a78bfa;
+  --indicator-color: rgba(124,58,237,0.2);
+  font-size: 13px;
+}
+ion-chip { --background: rgba(255,255,255,0.07); --color: rgba(255,255,255,0.7); }
+ion-badge { font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; }
+ion-input { --color: #f1f5f9; --placeholder-color: rgba(255,255,255,0.3); }
+ion-textarea { --color: #f1f5f9; --placeholder-color: rgba(255,255,255,0.3); }
+ion-select { --color: #f1f5f9; }
+ion-back-button { --color: #a78bfa; }
+ion-spinner { --color: #7c3aed; }
