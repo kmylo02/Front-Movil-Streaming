@@ -1,0 +1,8 @@
+{
+  "/api": {
+    "target": "https://back-streaming-75se.onrender.com",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "info"
+  }
+}
