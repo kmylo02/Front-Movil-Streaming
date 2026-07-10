@@ -35,12 +35,16 @@ export class AuthService {
   }
 
   private async _loadFromStorage(): Promise<void> {
-    try {
-      const { value: token } = await Preferences.get({ key: 'sm_token' });
-      const { value: u } = await Preferences.get({ key: 'sm_usuario' });
-      this._token = token;
-      if (token && u) this.usuario.set(JSON.parse(u));
-    } catch { /* ignore */ }
+    const timeout = new Promise<void>(r => setTimeout(r, 5000));
+    const load = async () => {
+      try {
+        const { value: token } = await Preferences.get({ key: 'sm_token' });
+        const { value: u } = await Preferences.get({ key: 'sm_usuario' });
+        this._token = token;
+        if (token && u) this.usuario.set(JSON.parse(u));
+      } catch { /* ignore */ }
+    };
+    await Promise.race([load(), timeout]);
   }
 
   getToken(): string | null { return this._token; }
