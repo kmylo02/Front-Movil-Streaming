@@ -2,7 +2,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NavController,
-  IonContent, IonButton, IonIcon, IonSpinner, IonInput, IonItem, IonLabel, IonNote,
+  IonContent, IonButton, IonIcon, IonSpinner, IonInput, IonItem, IonLabel,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { eyeOutline, eyeOffOutline, fingerPrintOutline, playOutline, logInOutline } from 'ionicons/icons';
@@ -11,7 +11,7 @@ import { AuthService } from '../core/services/auth.service';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, IonContent, IonButton, IonIcon, IonSpinner, IonInput, IonItem, IonLabel, IonNote],
+  imports: [CommonModule, FormsModule, IonContent, IonButton, IonIcon, IonSpinner, IonInput, IonItem, IonLabel],
   template: `
     <ion-content>
       <div class="login-root">

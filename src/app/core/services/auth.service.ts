@@ -52,10 +52,10 @@ export class AuthService {
 
   async login(username: string, password: string): Promise<void> {
     const resp = await firstValueFrom(
-      this.http.post<{ token: string; usuario: UsuarioSesion }>(`${API}/auth/login`, { username, password })
+      this.http.post<{ access_token: string; usuario: UsuarioSesion }>(`${API}/auth/login`, { username, password })
     );
-    this._token = resp.token;
-    await Preferences.set({ key: 'sm_token', value: resp.token });
+    this._token = resp.access_token;
+    await Preferences.set({ key: 'sm_token', value: resp.access_token });
     await Preferences.set({ key: 'sm_usuario', value: JSON.stringify(resp.usuario) });
     this.usuario.set(resp.usuario);
   }

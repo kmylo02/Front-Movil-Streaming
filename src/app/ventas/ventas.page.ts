@@ -45,10 +45,10 @@ import { FormsModule } from '@angular/forms';
         <ion-refresher-content></ion-refresher-content>
       </ion-refresher>
 
-      <ion-searchbar [(ngModel)]="busqueda" placeholder="Buscar cliente…" (ionInput)="filtrar()" debounce="300"></ion-searchbar>
+      <ion-searchbar [ngModel]="busqueda()" (ngModelChange)="busqueda.set($event)" placeholder="Buscar cliente…" debounce="300"></ion-searchbar>
 
       <div class="seg-wrap">
-        <ion-segment [(ngModel)]="estadoFiltro" (ionChange)="filtrar()" scrollable>
+        <ion-segment [ngModel]="estadoFiltro()" (ngModelChange)="estadoFiltro.set($event)" scrollable>
           <ion-segment-button value="all"><ion-label>Todas</ion-label></ion-segment-button>
           <ion-segment-button value="activa"><ion-label>Activas</ion-label></ion-segment-button>
           <ion-segment-button value="por_vencer"><ion-label>Por vencer</ion-label></ion-segment-button>
@@ -127,16 +127,16 @@ import { FormsModule } from '@angular/forms';
 export class VentasPage implements OnInit {
   loading = signal(true);
   ventas = signal<Venta[]>([]);
-  busqueda = '';
-  estadoFiltro = 'all';
+  busqueda = signal('');
+  estadoFiltro = signal('all');
   ventaSeleccionada = signal<Venta | null>(null);
   showActions = signal(false);
 
   ventasFiltradas = computed(() => {
     let list = this.ventas();
-    if (this.estadoFiltro !== 'all') list = list.filter(v => v.estado === this.estadoFiltro);
-    if (this.busqueda.trim()) {
-      const q = this.busqueda.toLowerCase();
+    if (this.estadoFiltro() !== 'all') list = list.filter(v => v.estado === this.estadoFiltro());
+    if (this.busqueda().trim()) {
+      const q = this.busqueda().toLowerCase();
       list = list.filter(v => v.nombreCliente.toLowerCase().includes(q));
     }
     return list;
@@ -182,8 +182,6 @@ export class VentasPage implements OnInit {
       await new Promise<void>(res => this.ventasApi.getAll().subscribe(v => { this.ventas.set(v); res(); }));
     } finally { this.loading.set(false); }
   }
-
-  filtrar() { /* computed handles filtering */ }
 
   openActions(v: Venta) {
     this.ventaSeleccionada.set(v);
