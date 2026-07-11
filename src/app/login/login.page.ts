@@ -165,7 +165,13 @@ export class LoginPage implements OnInit {
       }
       this.navCtrl.navigateRoot('/tabs/dashboard');
     } catch (e: any) {
-      this.error.set(e?.error?.message || 'Usuario o contraseña incorrectos');
+      if (e?.status === 0) {
+        this.error.set('Sin conexión al servidor. Verifica tu internet.');
+      } else if (e?.status === 401) {
+        this.error.set(e?.error?.message || 'Usuario o contraseña incorrectos');
+      } else {
+        this.error.set(e?.error?.message || e?.message || `Error ${e?.status || 'desconocido'}`);
+      }
     } finally {
       this.loading.set(false);
     }
