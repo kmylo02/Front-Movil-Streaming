@@ -214,6 +214,7 @@ export class InventarioApiService {
   update(id: string, dto: any) { return this.http.patch<Cuenta>(`${API}/inventario/${id}`, dto); }
   toggle(id: string) { return this.http.patch<Cuenta>(`${API}/inventario/${id}/toggle`, {}); }
   delete(id: string) { return this.http.delete(`${API}/inventario/${id}`); }
+  getClientesAfectados(id: string) { return this.http.get<any[]>(`${API}/inventario/${id}/clientes-afectados`); }
 }
 
 @Injectable({ providedIn: 'root' })

@@ -181,19 +181,17 @@ export class PlataformasReportPage implements OnInit {
   }
 
   ngOnInit() {
-    this.reportsApi.getPlataformasStats().subscribe(s => {
-      this.stats.set(s);
-      this.loading.set(false);
-      if (s.length) this.seleccionar(s[0]);
+    this.reportsApi.getPlataformasStats().subscribe({
+      next: s => { this.stats.set(s); this.loading.set(false); if (s.length) this.seleccionar(s[0]); },
+      error: () => this.loading.set(false),
     });
   }
 
   async doRefresh(ev: any) {
     this.loading.set(true);
-    this.reportsApi.getPlataformasStats().subscribe(s => {
-      this.stats.set(s);
-      this.loading.set(false);
-      if (s.length) this.seleccionar(s[0]);
+    this.reportsApi.getPlataformasStats().subscribe({
+      next: s => { this.stats.set(s); this.loading.set(false); if (s.length) this.seleccionar(s[0]); },
+      error: () => { this.loading.set(false); ev.target.complete(); },
     });
     ev.target.complete();
   }

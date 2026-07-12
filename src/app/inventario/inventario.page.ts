@@ -1,25 +1,26 @@
 import { Component, OnInit, signal, computed } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
-  IonRefresher, IonRefresherContent, IonCard, IonCardContent, IonList, IonItem, IonLabel,
+  IonRefresher, IonRefresherContent, IonItem, IonLabel,
   IonModal, IonInput, IonSelect, IonSelectOption, IonToggle, IonBadge,
-  IonSpinner, AlertController, LoadingController, ToastController,
+  IonSpinner, IonSearchbar, AlertController, LoadingController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { addOutline, closeOutline, checkmarkOutline, pencilOutline, trashOutline, eyeOutline } from 'ionicons/icons';
+import { addOutline, closeOutline, checkmarkOutline, pencilOutline, trashOutline, eyeOutline, copyOutline } from 'ionicons/icons';
 import { InventarioApiService, ServiciosApiService, Cuenta, Servicio } from '../core/services/api.service';
+import { Clipboard } from '@capacitor/clipboard';
 
 @Component({
   selector: 'app-inventario',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, DatePipe,
+    CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
-    IonRefresher, IonRefresherContent, IonCard, IonCardContent, IonList, IonItem, IonLabel,
+    IonRefresher, IonRefresherContent, IonItem, IonLabel,
     IonModal, IonInput, IonSelect, IonSelectOption, IonToggle, IonBadge,
-    IonSpinner,
+    IonSpinner, IonSearchbar,
   ],
   template: `
     <ion-header>
@@ -37,25 +38,27 @@ import { InventarioApiService, ServiciosApiService, Cuenta, Servicio } from '../
       </ion-refresher>
 
       <!-- Resumen por plataforma -->
-      @if (resumen()) {
+      @if (resumenEntries().length > 0) {
         <div class="resumen-scroll">
           @for (item of resumenEntries(); track item.nombre) {
-            <div class="resumen-chip" [style.--rc]="item.color">
-              <div class="rc-icon">{{ item.icono }}</div>
-              <div class="rc-info">
-                <div class="rc-name">{{ item.nombre }}</div>
-                <div class="rc-stat"><span class="rc-free">{{ item.libres }}</span>/{{ item.total }}</div>
-              </div>
+            <div class="resumen-chip" [class.chip-active]="filtroServicio() === item.nombre"
+                 (click)="toggleFiltroServicio(item.nombre)">
+              <div class="rc-name">{{ item.nombre }}</div>
+              <div class="rc-stat"><span class="rc-free">{{ item.libres }}</span>/{{ item.total }}</div>
             </div>
           }
         </div>
       }
 
+      <!-- Filtro búsqueda -->
+      <ion-searchbar [ngModel]="busqueda()" (ngModelChange)="busqueda.set($event)"
+                     placeholder="Buscar por email…" debounce="300"></ion-searchbar>
+
       @if (loading()) {
         <div class="loading-c"><ion-spinner name="crescent"></ion-spinner></div>
       } @else {
         <div class="cuentas-list">
-          @for (c of cuentas(); track c._id) {
+          @for (c of cuentasFiltradas(); track c._id) {
             <div class="cuenta-card" [class.cuenta-inactiva]="!c.activa">
               <div class="cuenta-top">
                 <div class="cuenta-plat">{{ c.nombreServicio }}</div>
@@ -80,6 +83,9 @@ import { InventarioApiService, ServiciosApiService, Cuenta, Servicio } from '../
                 </button>
               </div>
             </div>
+          }
+          @if (cuentasFiltradas().length === 0) {
+            <div class="empty-msg">Sin resultados para este filtro</div>
           }
         </div>
       }
@@ -125,7 +131,7 @@ import { InventarioApiService, ServiciosApiService, Cuenta, Servicio } from '../
             </ion-item>
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">Clave</ion-label>
-              <ion-input [(ngModel)]="form.clave" type="password" placeholder="Contraseña"></ion-input>
+              <ion-input [(ngModel)]="form.clave" type="text" placeholder="Contraseña"></ion-input>
             </ion-item>
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">Total perfiles</ion-label>
@@ -155,20 +161,56 @@ import { InventarioApiService, ServiciosApiService, Cuenta, Servicio } from '../
         </ion-content>
       </ng-template>
     </ion-modal>
+
+    <!-- Modal clientes afectados por cambio de clave -->
+    <ion-modal [isOpen]="showAfectados()" (didDismiss)="showAfectados.set(false)">
+      <ng-template>
+        <ion-header>
+          <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button (click)="showAfectados.set(false)"><ion-icon name="close-outline"></ion-icon></ion-button>
+            </ion-buttons>
+            <ion-title>Clientes afectados</ion-title>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <div class="afect-intro">
+            <div class="afect-icon">🔑</div>
+            <div class="afect-title">La clave fue actualizada</div>
+            <div class="afect-sub">{{ clientesAfectados().length }} cliente(s) usan esta cuenta. Envíales el mensaje actualizado.</div>
+          </div>
+          @for (c of clientesAfectados(); track c.clienteId) {
+            <div class="afect-card">
+              <div class="afect-nombre">{{ c.nombreCliente }}</div>
+              <div class="afect-estado">{{ c.estado }}</div>
+              <div class="afect-msg">{{ c.mensaje }}</div>
+              <button class="afect-copy-btn" (click)="copiarMensaje(c.mensaje)">
+                <ion-icon name="copy-outline"></ion-icon> Copiar mensaje
+              </button>
+            </div>
+          }
+          @if (clientesAfectados().length === 0) {
+            <div class="afect-empty">No hay clientes activos usando esta cuenta.</div>
+          }
+        </ion-content>
+      </ng-template>
+    </ion-modal>
   `,
   styles: [`
     .loading-c { display:flex; justify-content:center; padding:60px 0; }
-    .resumen-scroll { display:flex; gap:10px; overflow-x:auto; padding:12px 16px; scrollbar-width:none; }
+    .resumen-scroll { display:flex; gap:8px; overflow-x:auto; padding:12px 16px 4px; scrollbar-width:none; }
     .resumen-chip {
-      display:flex; align-items:center; gap:8px; flex-shrink:0;
+      display:flex; flex-direction:column; flex-shrink:0;
       background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
-      border-radius:12px; padding:8px 12px; min-width:100px;
+      border-radius:12px; padding:8px 14px; min-width:80px; cursor:pointer;
+      transition: all 0.18s;
     }
-    .rc-icon { font-size:18px; }
-    .rc-name { font-size:11px; color:rgba(241,245,249,0.5); }
-    .rc-stat { font-size:13px; font-weight:700; }
-    .rc-free { color:var(--sm-emerald, #10b981); }
-    .cuentas-list { padding:8px 16px 80px; display:flex; flex-direction:column; gap:10px; }
+    .resumen-chip.chip-active { background:rgba(124,58,237,0.15); border-color:rgba(124,58,237,0.4); }
+    .rc-name { font-size:11px; color:rgba(241,245,249,0.5); margin-bottom:2px; }
+    .rc-stat { font-size:14px; font-weight:700; }
+    .rc-free { color:#10b981; }
+    .cuentas-list { padding:4px 16px 80px; display:flex; flex-direction:column; gap:10px; }
+    .empty-msg { text-align:center; color:rgba(241,245,249,0.3); padding:40px 0; font-size:14px; }
     .cuenta-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:14px; }
     .cuenta-inactiva { opacity:0.5; }
     .cuenta-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
@@ -184,6 +226,16 @@ import { InventarioApiService, ServiciosApiService, Cuenta, Servicio } from '../
     .act-del { color:#f43f5e; border-color:rgba(244,63,94,0.2); background:rgba(244,63,94,0.08); }
     .modal-form { padding:16px; display:flex; flex-direction:column; gap:8px; }
     .f-item { --background:rgba(255,255,255,0.05); --border-radius:10px; border:1px solid rgba(255,255,255,0.08); border-radius:10px; }
+    .afect-intro { text-align:center; padding:24px 20px 12px; }
+    .afect-icon { font-size:36px; margin-bottom:8px; }
+    .afect-title { font-size:17px; font-weight:700; color:#f1f5f9; margin-bottom:4px; }
+    .afect-sub { font-size:13px; color:rgba(241,245,249,0.45); }
+    .afect-card { margin:8px 16px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:14px; }
+    .afect-nombre { font-size:15px; font-weight:700; color:#f1f5f9; margin-bottom:2px; }
+    .afect-estado { font-size:11px; color:rgba(241,245,249,0.35); margin-bottom:10px; }
+    .afect-msg { font-size:11px; font-family:monospace; color:rgba(241,245,249,0.6); background:rgba(0,0,0,0.25); border-radius:8px; padding:10px; white-space:pre-wrap; line-height:1.6; max-height:160px; overflow-y:auto; margin-bottom:10px; }
+    .afect-copy-btn { width:100%; background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.3); border-radius:10px; padding:10px; color:#a78bfa; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; }
+    .afect-empty { text-align:center; color:rgba(241,245,249,0.3); padding:40px 20px; font-size:14px; }
   `],
 })
 export class InventarioPage implements OnInit {
@@ -196,13 +248,30 @@ export class InventarioPage implements OnInit {
   saving = signal(false);
   form: Partial<Cuenta> & { renovable?: boolean } = {};
 
+  busqueda = signal('');
+  filtroServicio = signal('');
+  claveOriginal = '';
+
+  showAfectados = signal(false);
+  clientesAfectados = signal<any[]>([]);
+
   resumenEntries = computed(() => {
     const r = this.resumen();
     if (!r) return [];
     return Object.entries(r).map(([nombre, data]: [string, any]) => ({
-      nombre, color: data.color || '#7c3aed', icono: data.icono || '📺',
-      total: data.totalPerfiles || 0, libres: data.perfilesLibres || 0,
+      nombre,
+      total: data.total || 0,
+      libres: data.disponibles || 0,
     }));
+  });
+
+  cuentasFiltradas = computed(() => {
+    let list = this.cuentas();
+    const srv = this.filtroServicio();
+    const q = this.busqueda().toLowerCase().trim();
+    if (srv) list = list.filter(c => c.nombreServicio === srv);
+    if (q) list = list.filter(c => c.email.toLowerCase().includes(q));
+    return list;
   });
 
   constructor(
@@ -212,7 +281,7 @@ export class InventarioPage implements OnInit {
     private loadingCtrl: LoadingController,
     private toastCtrl: ToastController,
   ) {
-    addIcons({ addOutline, closeOutline, checkmarkOutline, pencilOutline, trashOutline, eyeOutline });
+    addIcons({ addOutline, closeOutline, checkmarkOutline, pencilOutline, trashOutline, eyeOutline, copyOutline });
   }
 
   ngOnInit() {
@@ -225,16 +294,21 @@ export class InventarioPage implements OnInit {
   async load() {
     this.loading.set(true);
     await Promise.all([
-      new Promise<void>(res => this.inventarioApi.getAll().subscribe(c => { this.cuentas.set(c); res(); })),
-      new Promise<void>(res => this.inventarioApi.getResumen().subscribe(r => { this.resumen.set(r); res(); })),
+      new Promise<void>(res => this.inventarioApi.getAll().subscribe({ next: c => { this.cuentas.set(c); res(); }, error: () => res() })),
+      new Promise<void>(res => this.inventarioApi.getResumen().subscribe({ next: r => { this.resumen.set(r); res(); }, error: () => res() })),
     ]);
     this.loading.set(false);
   }
 
   libres(c: Cuenta): number { return c.perfiles?.filter(p => !p.ocupado).length ?? 0; }
 
+  toggleFiltroServicio(nombre: string) {
+    this.filtroServicio.set(this.filtroServicio() === nombre ? '' : nombre);
+  }
+
   openModal(c?: Cuenta) {
     this.editando.set(c || null);
+    this.claveOriginal = c?.clave || '';
     this.form = c ? { ...c } : { tipo: 'compartida', totalPerfiles: 4 };
     this.showModal.set(true);
   }
@@ -242,21 +316,45 @@ export class InventarioPage implements OnInit {
   async guardar() {
     if (!this.form.email || !this.form.nombreServicio) return;
     this.saving.set(true);
+    const claveNueva = this.form.clave;
+    const claveCambio = !!this.editando() && !!claveNueva && claveNueva !== this.claveOriginal;
+    const cuentaId = this.editando()?._id;
     try {
       if (this.editando()) {
-        await new Promise<void>(res => this.inventarioApi.update(this.editando()!._id, this.form).subscribe(() => res()));
+        await new Promise<void>(res => this.inventarioApi.update(this.editando()!._id, this.form).subscribe({ next: () => res(), error: () => res() }));
       } else {
-        await new Promise<void>(res => this.inventarioApi.create(this.form).subscribe(() => res()));
+        await new Promise<void>(res => this.inventarioApi.create(this.form).subscribe({ next: () => res(), error: () => res() }));
       }
       this.showModal.set(false);
       await this.load();
       const t = await this.toastCtrl.create({ message: 'Guardado', duration: 2000, color: 'success' });
       t.present();
+
+      if (claveCambio && cuentaId) {
+        this.inventarioApi.getClientesAfectados(cuentaId).subscribe({
+          next: clientes => {
+            this.clientesAfectados.set(clientes);
+            this.showAfectados.set(true);
+          },
+          error: () => {},
+        });
+      }
     } finally { this.saving.set(false); }
   }
 
+  async copiarMensaje(mensaje: string) {
+    try {
+      await Clipboard.write({ string: mensaje });
+      const t = await this.toastCtrl.create({ message: 'Mensaje copiado', duration: 1800, color: 'dark' });
+      t.present();
+    } catch {
+      const t = await this.toastCtrl.create({ message: 'No se pudo copiar', duration: 1800, color: 'danger' });
+      t.present();
+    }
+  }
+
   async toggleCuenta(c: Cuenta) {
-    await new Promise<void>(res => this.inventarioApi.toggle(c._id).subscribe(() => res()));
+    await new Promise<void>(res => this.inventarioApi.toggle(c._id).subscribe({ next: () => res(), error: () => res() }));
     await this.load();
   }
 
@@ -267,7 +365,7 @@ export class InventarioPage implements OnInit {
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         { text: 'Eliminar', role: 'destructive', handler: async () => {
-          await new Promise<void>(res => this.inventarioApi.delete(c._id).subscribe(() => res()));
+          await new Promise<void>(res => this.inventarioApi.delete(c._id).subscribe({ next: () => res(), error: () => res() }));
           await this.load();
         }},
       ],
