@@ -316,12 +316,32 @@ export class InventarioPage implements OnInit {
     this.showModal.set(true);
   }
 
+  private static readonly PALABRAS_CLAVE = [
+    'tigre', 'leon', 'lobo', 'oso', 'aguila', 'halcon', 'pantera', 'jaguar', 'cobra',
+    'dragon', 'fenix', 'titan', 'atomo', 'cosmos', 'planeta', 'estrella', 'cometa',
+    'trueno', 'rayo', 'fuego', 'hielo', 'volcan', 'tornado', 'huracan', 'bosque', 'rio',
+  ];
+
   generarClave() {
+    const palabras = InventarioPage.PALABRAS_CLAVE;
+    const elegir = () => palabras[Math.floor(Math.random() * palabras.length)];
+    const w1 = elegir();
+    let w2 = elegir();
+    while (w2 === w1) w2 = elegir();
+
+    const transformar = (w: string) => {
+      let t = w.replace(/e/g, '3').replace(/i/g, '1');
+      const posiciones = [...t].map((c, i) => (/[a-z]/.test(c) ? i : -1)).filter(i => i >= 0);
+      const idx = posiciones[Math.floor(Math.random() * posiciones.length)];
+      return t.slice(0, idx) + t[idx].toUpperCase() + t.slice(idx + 1);
+    };
+
     const digitos = '0123456789';
     const letras = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz';
     const rand = (chars: string) => chars[Math.floor(Math.random() * chars.length)];
     const sufijo = rand(digitos) + rand(digitos) + rand(letras);
-    this.form.clave = `#pr1M3-d1N3y*${sufijo}`;
+
+    this.form.clave = `#${transformar(w1)}-${transformar(w2)}*${sufijo}`;
   }
 
   async guardar() {
