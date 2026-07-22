@@ -66,7 +66,12 @@ import { FormsModule } from '@angular/forms';
               <div class="venta-accent"></div>
               <div class="venta-body">
                 <div class="venta-top">
-                  <div class="venta-cliente">{{ v.nombreCliente }}</div>
+                  <div>
+                    <div class="venta-cliente">{{ v.nombreCliente }}</div>
+                    @if (telefonoDeCliente(v.clienteId); as tel) {
+                      <div class="venta-tel">📱 {{ tel }}</div>
+                    }
+                  </div>
                   <ion-badge [color]="badgeColor(v.estado)">{{ estadoLabel(v.estado) }}</ion-badge>
                 </div>
                 <div class="venta-svcs">
@@ -116,6 +121,7 @@ import { FormsModule } from '@angular/forms';
     .venta-body { flex: 1; padding: 12px 14px; }
     .venta-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
     .venta-cliente { font-size: 15px; font-weight: 700; color: #f1f5f9; }
+    .venta-tel { font-size: 11px; color: rgba(241,245,249,0.4); margin-top: 2px; }
     .venta-svcs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
     .svc-chip { --background: rgba(124,58,237,0.12); --color: #a78bfa; font-size: 11px; height: 22px; }
     .venta-foot { display: flex; align-items: center; justify-content: space-between; }
@@ -131,6 +137,7 @@ export class VentasPage implements OnInit {
   estadoFiltro = signal('all');
   ventaSeleccionada = signal<Venta | null>(null);
   showActions = signal(false);
+  private clientesPorId = new Map<string, Cliente>();
 
   ventasFiltradas = computed(() => {
     let list = this.ventas();
@@ -162,6 +169,7 @@ export class VentasPage implements OnInit {
 
   constructor(
     private ventasApi: VentasApiService,
+    private clientesApi: ClientesApiService,
     private ventaEvents: VentaEventsService,
     public navCtrl: NavController,
     private alertCtrl: AlertController,
@@ -173,7 +181,16 @@ export class VentasPage implements OnInit {
       pauseCircleOutline, playCircleOutline, chatbubbleOutline, copyOutline, checkmarkOutline });
   }
 
-  ngOnInit() { this.load(); }
+  ngOnInit() {
+    this.load();
+    this.clientesApi.getAll().subscribe(cs => {
+      this.clientesPorId = new Map(cs.map(c => [c._id, c]));
+    });
+  }
+
+  telefonoDeCliente(clienteId: string): string | undefined {
+    return this.clientesPorId.get(clienteId)?.telefono;
+  }
 
   async doRefresh(ev: any) { await this.load(); ev.target.complete(); }
 
