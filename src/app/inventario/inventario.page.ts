@@ -41,7 +41,7 @@ import { Clipboard } from '@capacitor/clipboard';
       @if (resumenEntries().length > 0) {
         <div class="resumen-scroll">
           @for (item of resumenEntries(); track item.nombre) {
-            <div class="resumen-chip" [class.chip-active]="filtroServicio() === item.nombre"
+            <div class="resumen-chip" [class.chip-active]="plataformasSeleccionadas().has(item.nombre)"
                  (click)="toggleFiltroServicio(item.nombre)">
               <div class="rc-name">{{ item.nombre }}</div>
               <div class="rc-stat"><span class="rc-free">{{ item.libres }}</span>/{{ item.total }}</div>
@@ -250,7 +250,7 @@ export class InventarioPage implements OnInit {
   form: Partial<Cuenta> & { renovable?: boolean } = {};
 
   busqueda = signal('');
-  filtroServicio = signal('');
+  plataformasSeleccionadas = signal<Set<string>>(new Set());
   claveOriginal = '';
 
   showAfectados = signal(false);
@@ -268,9 +268,9 @@ export class InventarioPage implements OnInit {
 
   cuentasFiltradas = computed(() => {
     let list = this.cuentas();
-    const srv = this.filtroServicio();
+    const plataformas = this.plataformasSeleccionadas();
     const q = this.busqueda().toLowerCase().trim();
-    if (srv) list = list.filter(c => c.nombreServicio === srv);
+    if (plataformas.size > 0) list = list.filter(c => plataformas.has(c.nombreServicio));
     if (q) list = list.filter(c => c.email.toLowerCase().includes(q));
     return list;
   });
@@ -304,7 +304,9 @@ export class InventarioPage implements OnInit {
   libres(c: Cuenta): number { return c.perfiles?.filter(p => !p.ocupado).length ?? 0; }
 
   toggleFiltroServicio(nombre: string) {
-    this.filtroServicio.set(this.filtroServicio() === nombre ? '' : nombre);
+    const set = new Set(this.plataformasSeleccionadas());
+    if (set.has(nombre)) set.delete(nombre); else set.add(nombre);
+    this.plataformasSeleccionadas.set(set);
   }
 
   openModal(c?: Cuenta) {
