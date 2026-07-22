@@ -146,6 +146,7 @@ export class VentasPage implements OnInit {
     const v = this.ventaSeleccionada();
     if (!v) return [];
     const btns: any[] = [
+      { text: 'Editar', icon: 'pencil-outline', handler: () => this.navCtrl.navigateForward(`/tabs/ventas/editar/${v._id}`) },
       { text: 'Renovar', icon: 'refresh-outline', handler: () => this.renovar(v) },
       { text: 'Ver mensaje', icon: 'chatbubble-outline', handler: () => this.copiarMensaje(v) },
     ];

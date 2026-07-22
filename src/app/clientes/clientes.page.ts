@@ -5,7 +5,7 @@ import { RouterModule } from '@angular/router';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonRefresher, IonRefresherContent, IonSearchbar, IonList, IonItem, IonLabel,
-  IonModal, IonInput, IonTextarea, IonSpinner, IonBadge, NavController,
+  IonModal, IonInput, IonSpinner, IonBadge, NavController,
   AlertController, LoadingController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -22,7 +22,7 @@ import { ClientesApiService, Cliente } from '../core/services/api.service';
     CommonModule, FormsModule, RouterModule, DatePipe,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonRefresher, IonRefresherContent, IonSearchbar, IonList, IonItem, IonLabel,
-    IonModal, IonInput, IonTextarea, IonSpinner, IonBadge,
+    IonModal, IonInput, IonSpinner, IonBadge,
   ],
   template: `
     <ion-header>
@@ -95,14 +95,6 @@ import { ClientesApiService, Cliente } from '../core/services/api.service';
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">WhatsApp</ion-label>
               <ion-input [(ngModel)]="form.whatsapp" type="tel" placeholder="Número WhatsApp"></ion-input>
-            </ion-item>
-            <ion-item class="f-item" lines="none">
-              <ion-label position="stacked">Email</ion-label>
-              <ion-input [(ngModel)]="form.email" type="email" placeholder="email@ejemplo.com"></ion-input>
-            </ion-item>
-            <ion-item class="f-item" lines="none">
-              <ion-label position="stacked">Notas</ion-label>
-              <ion-textarea [(ngModel)]="form.notas" placeholder="Observaciones…" rows="3"></ion-textarea>
             </ion-item>
           </div>
         </ion-content>

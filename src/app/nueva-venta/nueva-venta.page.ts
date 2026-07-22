@@ -10,18 +10,28 @@ import { addIcons } from 'ionicons';
 import { chevronBackOutline, checkmarkOutline, addOutline, closeOutline, searchOutline } from 'ionicons/icons';
 import {
   VentasApiService, ClientesApiService, ServiciosApiService, InventarioApiService,
-  Cliente, Servicio, Cuenta,
+  Cliente, Servicio,
 } from '../core/services/api.service';
 import { VentaEventsService } from '../core/services/venta-events.service';
+
+interface CuentaDisponible {
+  cuentaId: string;
+  email: string;
+  clave: string;
+  tipo: string;
+  perfilesDisponibles: { numero: number; clavePerfil?: string }[];
+}
 
 interface ServicioForm {
   servicio: Servicio;
   seleccionado: boolean;
+  cuentaId: string;
   emailCuenta: string;
   claveCuenta: string;
   numeroPerfil: number | null;
   clavePerfil: string;
-  cuentasDisponibles: Cuenta[];
+  perfilesDisponibles: { numero: number; clavePerfil?: string }[];
+  cuentasDisponibles: CuentaDisponible[];
 }
 
 @Component({
@@ -128,7 +138,11 @@ interface ServicioForm {
                   </ion-item>
                   @if (sf.servicio.requiereNumeroPerfil) {
                     <ion-item class="f-item" lines="none">
-                      <ion-input [(ngModel)]="sf.numeroPerfil" placeholder="N° perfil" type="number"></ion-input>
+                      <ion-select [(ngModel)]="sf.numeroPerfil" placeholder="N° perfil" interface="popover">
+                        @for (p of sf.perfilesDisponibles; track p.numero) {
+                          <ion-select-option [value]="p.numero">Perfil {{ p.numero }}</ion-select-option>
+                        }
+                      </ion-select>
                     </ion-item>
                   }
                   @if (sf.servicio.requiereClavePerfil) {
@@ -139,9 +153,9 @@ interface ServicioForm {
                   @if (sf.cuentasDisponibles.length > 0) {
                     <div class="cuentas-sugg">
                       <div class="sugg-lbl">Cuentas disponibles:</div>
-                      @for (c of sf.cuentasDisponibles; track c._id) {
-                        <div class="cuenta-sugg-item" (click)="autoFillCuenta(sf, c)">
-                          {{ c.email }} ({{ libres(c) }} libres)
+                      @for (c of sf.cuentasDisponibles; track c.cuentaId) {
+                        <div class="cuenta-sugg-item" (click)="seleccionarCuenta(sf, c)">
+                          {{ c.email }} ({{ c.perfilesDisponibles.length }} libres)
                         </div>
                       }
                     </div>
@@ -237,9 +251,9 @@ export class NuevaVentaPage implements OnInit {
     this.calcFechaVenc();
     this.serviciosApi.getAll().subscribe(svcs => {
       this.serviciosForm.set(svcs.filter(s => s.activo).map(s => ({
-        servicio: s, seleccionado: false,
+        servicio: s, seleccionado: false, cuentaId: '',
         emailCuenta: '', claveCuenta: '', numeroPerfil: null, clavePerfil: '',
-        cuentasDisponibles: [],
+        perfilesDisponibles: [], cuentasDisponibles: [],
       })));
       this.loadingSvcs.set(false);
     });
@@ -271,61 +285,68 @@ export class NuevaVentaPage implements OnInit {
       this.inventarioApi.getDisponibles(sf.servicio.nombre).subscribe(cs => {
         sf.cuentasDisponibles = cs;
       });
+    } else {
+      sf.cuentaId = '';
+      sf.perfilesDisponibles = [];
+      sf.numeroPerfil = null;
     }
     this.serviciosForm.update(f => [...f]);
   }
 
   buscarCuentas(sf: ServicioForm) {
     this.inventarioApi.getDisponibles(sf.servicio.nombre).subscribe(cs => {
-      sf.cuentasDisponibles = cs;
+      sf.cuentasDisponibles = sf.emailCuenta
+        ? cs.filter((c: CuentaDisponible) => c.email.toLowerCase().includes(sf.emailCuenta.toLowerCase()))
+        : cs;
       this.serviciosForm.update(f => [...f]);
     });
   }
 
-  autoFillCuenta(sf: ServicioForm, c: Cuenta) {
+  seleccionarCuenta(sf: ServicioForm, c: CuentaDisponible) {
+    sf.cuentaId = c.cuentaId;
     sf.emailCuenta = c.email;
     sf.claveCuenta = c.clave;
-    const libre = c.perfiles.find(p => !p.ocupado);
-    if (libre && sf.servicio.requiereNumeroPerfil) sf.numeroPerfil = libre.numero;
+    sf.perfilesDisponibles = c.perfilesDisponibles || [];
+    const primero = sf.perfilesDisponibles[0];
+    sf.numeroPerfil = primero?.numero ?? null;
+    sf.clavePerfil = primero?.clavePerfil || '';
     sf.cuentasDisponibles = [];
     this.serviciosForm.update(f => [...f]);
   }
 
-  libres(c: Cuenta): number { return c.perfiles.filter(p => !p.ocupado).length; }
-
   canSave(): boolean {
+    const seleccionados = this.serviciosForm().filter(sf => sf.seleccionado);
     return !!this.clienteSeleccionado() &&
       !!this.fechaInicio && !!this.fechaVencimiento &&
-      this.serviciosForm().some(sf => sf.seleccionado) &&
+      seleccionados.length > 0 &&
+      seleccionados.every(sf => !!sf.cuentaId && (sf.numeroPerfil != null || !sf.servicio.requiereNumeroPerfil)) &&
       !!this.monto;
   }
 
   async guardar() {
+    if (!this.canSave()) return;
     const loading = await this.loadingCtrl.create({ message: 'Guardando…' });
     await loading.present();
     this.saving.set(true);
     try {
       const cliente = this.clienteSeleccionado()!;
-      const servicios = this.serviciosForm()
+      const serviciosSeleccionados = this.serviciosForm()
         .filter(sf => sf.seleccionado)
         .map(sf => ({
-          servicioId: sf.servicio._id,
-          nombreServicio: sf.servicio.nombre,
-          emailCuenta: sf.emailCuenta,
-          claveCuenta: sf.claveCuenta,
+          cuentaId: sf.cuentaId,
           numeroPerfil: sf.numeroPerfil ?? 1,
-          clavePerfil: sf.clavePerfil,
+          clavePerfil: sf.clavePerfil || undefined,
         }));
-      await new Promise<void>(res => this.ventasApi.create({
+      await new Promise<void>((res, rej) => this.ventasApi.create({
         clienteId: cliente._id,
         nombreCliente: cliente.nombre,
-        servicios,
+        serviciosSeleccionados,
         fechaInicio: this.fechaInicio,
         fechaVencimiento: this.fechaVencimiento,
         duracionMeses: this.duracionMeses,
         monto: this.monto,
         notas: this.notas,
-      }).subscribe(() => res()));
+      }).subscribe({ next: () => res(), error: rej }));
       this.ventaEvents.notificar();
       const t = await this.toastCtrl.create({ message: 'Venta creada', duration: 2000, color: 'success' });
       await t.present();

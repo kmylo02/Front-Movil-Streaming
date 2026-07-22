@@ -9,6 +9,7 @@ export const routes: Routes = [
       { path: 'dashboard', loadComponent: () => import('../dashboard/dashboard.page').then((m) => m.DashboardPage) },
       { path: 'ventas', loadComponent: () => import('../ventas/ventas.page').then((m) => m.VentasPage) },
       { path: 'ventas/nueva', loadComponent: () => import('../nueva-venta/nueva-venta.page').then((m) => m.NuevaVentaPage) },
+      { path: 'ventas/editar/:id', loadComponent: () => import('../editar-venta/editar-venta.page').then((m) => m.EditarVentaPage) },
       { path: 'clientes', loadComponent: () => import('../clientes/clientes.page').then((m) => m.ClientesPage) },
       { path: 'inventario', loadComponent: () => import('../inventario/inventario.page').then((m) => m.InventarioPage) },
       { path: 'mas', loadComponent: () => import('../mas/mas.page').then((m) => m.MasPage) },

@@ -11,8 +11,6 @@ export interface Cliente {
   nombre: string;
   telefono: string;
   whatsapp?: string;
-  email?: string;
-  notas?: string;
   activo: boolean;
   createdAt: string;
 }
