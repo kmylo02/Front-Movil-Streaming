@@ -132,6 +132,7 @@ import { Clipboard } from '@capacitor/clipboard';
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">Clave</ion-label>
               <ion-input [(ngModel)]="form.clave" type="text" placeholder="Contraseña"></ion-input>
+              <ion-button slot="end" fill="clear" size="small" (click)="generarClave()">Generar</ion-button>
             </ion-item>
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">Total perfiles</ion-label>
@@ -311,6 +312,14 @@ export class InventarioPage implements OnInit {
     this.claveOriginal = c?.clave || '';
     this.form = c ? { ...c } : { tipo: 'compartida', totalPerfiles: 4 };
     this.showModal.set(true);
+  }
+
+  generarClave() {
+    const digitos = '0123456789';
+    const letras = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz';
+    const rand = (chars: string) => chars[Math.floor(Math.random() * chars.length)];
+    const sufijo = rand(digitos) + rand(digitos) + rand(letras);
+    this.form.clave = `#pr1M3-d1N3y*${sufijo}`;
   }
 
   async guardar() {
