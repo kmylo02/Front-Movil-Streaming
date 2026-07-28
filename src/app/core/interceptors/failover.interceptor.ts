@@ -6,8 +6,9 @@ import { BackendFailoverService } from '../services/backend-failover.service';
 
 // Tiempo maximo antes de considerar que el backend activo no responde.
 // Debe ser generoso para no confundir un "cold start" normal de Render
-// (el servicio tarda en despertar) con una caida real por creditos agotados.
-const TIMEOUT_MS = 25000;
+// (el servicio dormido puede tardar hasta ~1 minuto en despertar) con una
+// caida real por creditos agotados.
+const TIMEOUT_MS = 90000;
 
 function esErrorDeConexion(err: unknown): boolean {
   if (err instanceof HttpErrorResponse) {
