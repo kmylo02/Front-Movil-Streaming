@@ -7,6 +7,7 @@ import { APP_INITIALIZER, inject } from '@angular/core';
 import { routes } from './app/app.routes';
 import { AppComponent } from './app/app.component';
 import { authInterceptor } from './app/core/interceptors/auth.interceptor';
+import { failoverInterceptor } from './app/core/interceptors/failover.interceptor';
 import { AuthService } from './app/core/services/auth.service';
 
 bootstrapApplication(AppComponent, {
@@ -14,7 +15,7 @@ bootstrapApplication(AppComponent, {
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     provideIonicAngular(),
     provideRouter(routes, withPreloading(PreloadAllModules)),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideHttpClient(withInterceptors([authInterceptor, failoverInterceptor])),
     {
       provide: APP_INITIALIZER,
       useFactory: (auth: AuthService) => () => auth.init(),
