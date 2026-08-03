@@ -69,7 +69,8 @@ export class AuthService {
   }
 
   cambiarPassword(passwordActual: string, passwordNueva: string) {
-    return this.http.put(`${API}/auth/me/password`, { passwordActual, passwordNueva });
+    const userId = this.usuario()?.id;
+    return this.http.put(`${API}/auth/me/password`, { userId, passwordActual, passwordNueva });
   }
 
   // ── Biometric ──────────────────────────────────────────────────────────────

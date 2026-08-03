@@ -75,8 +75,6 @@ export interface Servicio {
   activo: boolean;
   requiereClavePerfil: boolean;
   requiereNumeroPerfil: boolean;
-  precio?: number;
-  perfilesPorCuenta?: number;
 }
 
 export interface Dashboard {
@@ -99,38 +97,35 @@ export interface Usuario {
   createdAt: string;
 }
 
-export interface PlataformaStats {
+export interface PlataformaClienteItem {
+  clienteId: string;
   nombre: string;
-  icono: string;
-  color: string;
-  totalActivas: number;
+  emailCuenta?: string;
+  numeroPerfil?: number;
+  otrasPlataformas: string[];
 }
 
-export interface PlataformaReporteCliente {
-  clienteId: string;
-  nombreCliente: string;
-  monto: number;
-  diasRestantes: number | null;
+export interface PlataformaStats {
+  nombre: string;
+  totalActivos: number;
+  clientes: PlataformaClienteItem[];
 }
 
 export interface ComboStats {
-  nombres: string[];
-  cantidad: number;
+  plataformas: string[];
+  clientes: { clienteId: string; nombre: string }[];
 }
 
-export interface UpsellCliente {
+export interface SinCombinarCliente {
   clienteId: string;
-  nombreCliente: string;
-  serviciosSugeridos: string[];
+  nombre: string;
+  plataforma: string;
 }
 
 export interface PlataformasReport {
-  totalActivas: number;
-  ingresosMes: number;
-  proximasAVencer: number;
-  clientes: PlataformaReporteCliente[];
+  plataformas: PlataformaStats[];
   combos: ComboStats[];
-  posiblesUpsells: UpsellCliente[];
+  sinCombinar: SinCombinarCliente[];
 }
 
 export interface FinancieroMes {
@@ -225,7 +220,6 @@ export class ServiciosApiService {
   }
   create(dto: Partial<Servicio>) { return this.http.post<Servicio>(`${API}/servicios`, dto); }
   update(id: string, dto: Partial<Servicio>) { return this.http.patch<Servicio>(`${API}/servicios/${id}`, dto); }
-  delete(id: string) { return this.http.delete(`${API}/servicios/${id}`); }
 }
 
 @Injectable({ providedIn: 'root' })
@@ -269,10 +263,7 @@ export class ReportsApiService {
     if (anio) params = params.set('anio', anio.toString());
     return this.http.get<FinancieroMes[]>(`${API}/reports/financiero`, { params });
   }
-  getPlataformasStats() {
-    return this.http.get<PlataformaStats[]>(`${API}/reports/plataformas/stats`);
-  }
-  getPlataformaReport(nombre: string) {
-    return this.http.get<PlataformasReport>(`${API}/reports/plataformas/${encodeURIComponent(nombre)}`);
+  getPlataformas() {
+    return this.http.get<PlataformasReport>(`${API}/reports/plataformas`);
   }
 }

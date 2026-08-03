@@ -4,10 +4,10 @@ import { FormsModule } from '@angular/forms';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonRefresher, IonRefresherContent, IonModal, IonItem, IonLabel, IonInput,
-  IonToggle, IonSpinner, IonBadge, NavController, AlertController, LoadingController, ToastController,
+  IonToggle, IonSpinner, IonBadge, NavController, LoadingController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { addOutline, closeOutline, pencilOutline, trashOutline, chevronBackOutline } from 'ionicons/icons';
+import { addOutline, closeOutline, pencilOutline, chevronBackOutline } from 'ionicons/icons';
 import { ServiciosApiService, Servicio } from '../core/services/api.service';
 
 const COLORS = ['#7c3aed','#c026d3','#f43f5e','#f59e0b','#10b981','#0ea5e9','#ec4899','#14b8a6'];
@@ -53,15 +53,13 @@ const ICONOS = ['📺','🎬','🎵','🎮','⚡','🏆','🌐','📡','🔴','�
                 </ion-badge>
               </div>
               <div class="svc-name">{{ s.nombre }}</div>
-              @if (s.precio) {
-                <div class="svc-price">{{ '$' + s.precio.toLocaleString() }}</div>
-              }
               <div class="svc-flags">
                 @if (s.requiereNumeroPerfil) { <div class="svc-flag">N° perfil</div> }
                 @if (s.requiereClavePerfil) { <div class="svc-flag">PIN</div> }
               </div>
-              <button class="del-btn" (click)="$event.stopPropagation(); eliminar(s)">
-                <ion-icon name="trash-outline"></ion-icon>
+              <button class="del-btn" [class.del-btn-on]="s.activo" (click)="$event.stopPropagation(); toggleActivo(s)"
+                      [title]="s.activo ? 'Desactivar' : 'Activar'">
+                {{ s.activo ? '✓' : '○' }}
               </button>
             </div>
           }
@@ -117,15 +115,6 @@ const ICONOS = ['📺','🎬','🎵','🎮','⚡','🏆','🌐','📡','🔴','�
             </div>
 
             <ion-item class="f-item" lines="none">
-              <ion-label position="stacked">Precio mensual ($)</ion-label>
-              <ion-input [(ngModel)]="form.precio" type="number" placeholder="0"></ion-input>
-            </ion-item>
-            <ion-item class="f-item" lines="none">
-              <ion-label position="stacked">Perfiles por cuenta</ion-label>
-              <ion-input [(ngModel)]="form.perfilesPorCuenta" type="number" placeholder="4"></ion-input>
-            </ion-item>
-
-            <ion-item class="f-item" lines="none">
               <ion-label>Requiere N° de perfil</ion-label>
               <ion-toggle [(ngModel)]="form.requiereNumeroPerfil" slot="end"></ion-toggle>
             </ion-item>
@@ -153,11 +142,15 @@ const ICONOS = ['📺','🎬','🎵','🎮','⚡','🏆','🌐','📡','🔴','�
     .svc-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
     .svc-icon-wrap { font-size:20px; }
     .svc-badge { font-size:10px; }
-    .svc-name { font-size:14px; font-weight:700; color:#f1f5f9; margin-bottom:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .svc-price { font-size:12px; color:rgba(241,245,249,0.4); margin-bottom:6px; }
+    .svc-name { font-size:14px; font-weight:700; color:#f1f5f9; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .svc-flags { display:flex; flex-wrap:wrap; gap:4px; }
     .svc-flag { font-size:9px; padding:2px 6px; border-radius:4px; background:rgba(124,58,237,0.12); color:#a78bfa; border:1px solid rgba(124,58,237,0.2); }
-    .del-btn { position:absolute; top:10px; right:10px; background:transparent; border:none; padding:4px; color:rgba(244,63,94,0.5); display:flex; align-items:center; justify-content:center; }
+    .del-btn {
+      position:absolute; top:10px; right:10px; width:22px; height:22px; border-radius:50%;
+      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); padding:0;
+      color:rgba(241,245,249,0.4); display:flex; align-items:center; justify-content:center; font-size:12px;
+    }
+    .del-btn-on { background:rgba(16,185,129,0.15); border-color:rgba(16,185,129,0.4); color:#10b981; }
     .modal-form { padding:16px; display:flex; flex-direction:column; gap:8px; }
     .preview-card { border:2px solid; border-radius:14px; padding:16px; text-align:center; margin-bottom:6px; }
     .preview-icon { font-size:32px; margin-bottom:6px; }
@@ -185,11 +178,10 @@ export class ServiciosPage implements OnInit {
   constructor(
     private serviciosApi: ServiciosApiService,
     public navCtrl: NavController,
-    private alertCtrl: AlertController,
     private loadingCtrl: LoadingController,
     private toastCtrl: ToastController,
   ) {
-    addIcons({ addOutline, closeOutline, pencilOutline, trashOutline, chevronBackOutline });
+    addIcons({ addOutline, closeOutline, pencilOutline, chevronBackOutline });
   }
 
   ngOnInit() { this.load(); }
@@ -226,23 +218,13 @@ export class ServiciosPage implements OnInit {
     } finally { this.saving.set(false); }
   }
 
-  async eliminar(s: Servicio) {
-    const alert = await this.alertCtrl.create({
-      header: 'Eliminar plataforma',
-      message: `¿Eliminar ${s.nombre}?`,
-      buttons: [
-        { text: 'Cancelar', role: 'cancel' },
-        { text: 'Eliminar', role: 'destructive', handler: async () => {
-          try {
-            await new Promise<void>((res, rej) => this.serviciosApi.delete(s._id).subscribe({ next: () => res(), error: rej }));
-            await this.load();
-          } catch (e: any) {
-            const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al eliminar', duration: 3000, color: 'danger' });
-            t.present();
-          }
-        }},
-      ],
-    });
-    await alert.present();
+  async toggleActivo(s: Servicio) {
+    try {
+      await new Promise<void>((res, rej) => this.serviciosApi.update(s._id, { activo: !s.activo }).subscribe({ next: () => res(), error: rej }));
+      await this.load();
+    } catch (e: any) {
+      const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al cambiar estado', duration: 3000, color: 'danger' });
+      t.present();
+    }
   }
 }

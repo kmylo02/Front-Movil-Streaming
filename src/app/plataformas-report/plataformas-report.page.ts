@@ -1,23 +1,23 @@
-import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { Component, OnInit, signal, computed } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonRefresher, IonRefresherContent, IonCard, IonCardContent, IonChip, IonBadge,
-  IonList, IonItem, IonLabel, IonSpinner, NavController,
+  IonSpinner, NavController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { chevronBackOutline, trendingUpOutline } from 'ionicons/icons';
-import { ReportsApiService, PlataformaStats, PlataformasReport } from '../core/services/api.service';
+import { chevronBackOutline, linkOutline, trendingUpOutline } from 'ionicons/icons';
+import { ReportsApiService, ServiciosApiService, PlataformasReport, PlataformaClienteItem, Servicio } from '../core/services/api.service';
 
 @Component({
   selector: 'app-plataformas-report',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, DatePipe,
+    CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonRefresher, IonRefresherContent, IonCard, IonCardContent, IonChip, IonBadge,
-    IonList, IonItem, IonLabel, IonSpinner,
+    IonSpinner,
   ],
   template: `
     <ion-header>
@@ -36,98 +36,93 @@ import { ReportsApiService, PlataformaStats, PlataformasReport } from '../core/s
 
       @if (loading()) {
         <div class="loading-c"><ion-spinner name="crescent"></ion-spinner></div>
-      } @else {
+      } @else if (report()) {
         <!-- Platform Chips -->
         <div class="plat-chips">
-          @for (p of stats(); track p.nombre) {
+          @for (p of report()!.plataformas; track p.nombre) {
             <button class="plat-chip" [class.chip-active]="plataformaActiva() === p.nombre"
-              [style.--pc]="p.color" (click)="seleccionar(p)">
-              <span class="pc-icon">{{ p.icono }}</span>
+              [style.--pc]="getColor(p.nombre)" (click)="seleccionar(p.nombre)">
+              <span class="pc-icon">{{ getIcono(p.nombre) }}</span>
               <span class="pc-name">{{ p.nombre }}</span>
-              <span class="pc-count">{{ p.totalActivas }}</span>
+              <span class="pc-count">{{ p.totalActivos }}</span>
             </button>
+          }
+          @if (report()!.plataformas.length === 0) {
+            <div class="sel-msg">Sin datos de plataformas activas todavía.</div>
           }
         </div>
 
-        @if (reporte()) {
+        @if (clientesActivos().length > 0 || plataformaActiva()) {
           <ion-card class="rep-card">
             <ion-card-content>
-              <!-- Stats row -->
-              <div class="rep-stats">
-                <div class="rep-stat">
-                  <div class="rep-val" style="color:#10b981">{{ reporte()!.totalActivas }}</div>
-                  <div class="rep-lbl">Activas</div>
-                </div>
-                <div class="rep-stat">
-                  <div class="rep-val" style="color:#a78bfa">{{ fmt(reporte()!.ingresosMes) }}</div>
-                  <div class="rep-lbl">Ingresos mes</div>
-                </div>
-                <div class="rep-stat">
-                  <div class="rep-val" style="color:#f43f5e">{{ reporte()!.proximasAVencer }}</div>
-                  <div class="rep-lbl">Por vencer</div>
-                </div>
-              </div>
-
-              <!-- Clientes table -->
-              <div class="rep-table-title">Clientes activos</div>
-              @for (c of reporte()!.clientes; track c.clienteId) {
-                <div class="rep-row" [class.rep-warn]="c.diasRestantes !== null && c.diasRestantes <= 7">
+              <div class="rep-table-title">Clientes de {{ plataformaActiva() }}</div>
+              @if (clientesActivos().length === 0) {
+                <div class="sel-msg">Sin suscriptores activos.</div>
+              }
+              @for (c of clientesActivos(); track c.clienteId) {
+                <div class="rep-row">
                   <div class="rep-cli">
-                    <div class="rep-nombre">{{ c.nombreCliente }}</div>
-                    @if (c.diasRestantes !== null) {
-                      <div class="rep-vence" [class.vence-r]="c.diasRestantes <= 3">
-                        Vence en {{ c.diasRestantes }}d
+                    <div class="rep-nombre">{{ c.nombre }}</div>
+                    @if (c.emailCuenta) {
+                      <div class="rep-cuenta">
+                        {{ c.emailCuenta }}
+                        @if (c.numeroPerfil) { · Perfil {{ c.numeroPerfil }} }
                       </div>
                     }
                   </div>
-                  <div class="rep-monto">{{ '$' + c.monto.toLocaleString('es-CO') }}</div>
+                  @if (c.otrasPlataformas.length > 0) {
+                    <div class="otras-plt">
+                      @for (op of c.otrasPlataformas; track op) {
+                        <ion-chip class="combo-chip" [style.--pc]="getColor(op)">{{ op }}</ion-chip>
+                      }
+                    </div>
+                  } @else {
+                    <span class="chip-solo">Solo esta</span>
+                  }
                 </div>
               }
             </ion-card-content>
           </ion-card>
+        }
 
-          <!-- Combos -->
-          @if (reporte()!.combos.length > 0) {
-            <ion-card class="rep-card">
-              <ion-card-content>
-                <div class="rep-table-title">Combos frecuentes</div>
-                @for (combo of reporte()!.combos; track combo.nombres) {
-                  <div class="combo-row">
-                    <div class="combo-chips">
-                      @for (n of combo.nombres; track n) {
-                        <ion-chip class="combo-chip">{{ n }}</ion-chip>
-                      }
-                    </div>
-                    <div class="combo-cnt">{{ combo.cantidad }} clientes</div>
+        <!-- Combos -->
+        @if (report()!.combos.length > 0) {
+          <ion-card class="rep-card">
+            <ion-card-content>
+              <div class="rep-table-title">
+                <ion-icon name="link-outline" style="vertical-align:middle;margin-right:4px"></ion-icon>
+                Combos frecuentes
+              </div>
+              @for (combo of report()!.combos; track combo.plataformas.join()) {
+                <div class="combo-row">
+                  <div class="combo-chips">
+                    @for (n of combo.plataformas; track n) {
+                      <ion-chip class="combo-chip" [style.--pc]="getColor(n)">{{ n }}</ion-chip>
+                    }
                   </div>
-                }
-              </ion-card-content>
-            </ion-card>
-          }
-
-          <!-- Upsell -->
-          @if (reporte()!.posiblesUpsells.length > 0) {
-            <ion-card class="rep-card">
-              <ion-card-content>
-                <div class="rep-table-title">
-                  <ion-icon name="trending-up-outline" style="vertical-align:middle;margin-right:4px;color:#10b981"></ion-icon>
-                  Oportunidades de upsell
+                  <div class="combo-cnt">{{ combo.clientes.length }} clientes</div>
                 </div>
-                @for (u of reporte()!.posiblesUpsells; track u.clienteId) {
-                  <div class="upsell-row">
-                    <div class="upsell-nombre">{{ u.nombreCliente }}</div>
-                    <div class="upsell-svcs">
-                      @for (s of u.serviciosSugeridos; track s) {
-                        <ion-badge color="secondary" class="upsell-badge">+ {{ s }}</ion-badge>
-                      }
-                    </div>
-                  </div>
-                }
-              </ion-card-content>
-            </ion-card>
-          }
-        } @else {
-          <div class="sel-msg">Selecciona una plataforma para ver el reporte</div>
+              }
+            </ion-card-content>
+          </ion-card>
+        }
+
+        <!-- Upsell -->
+        @if (report()!.sinCombinar.length > 0) {
+          <ion-card class="rep-card">
+            <ion-card-content>
+              <div class="rep-table-title">
+                <ion-icon name="trending-up-outline" style="vertical-align:middle;margin-right:4px;color:#10b981"></ion-icon>
+                Oportunidades de upsell
+              </div>
+              @for (u of report()!.sinCombinar; track u.clienteId) {
+                <div class="upsell-row">
+                  <div class="upsell-nombre">{{ u.nombre }}</div>
+                  <ion-badge color="secondary" class="upsell-badge" [style.--pc]="getColor(u.plataforma)">{{ u.plataforma }}</ion-badge>
+                </div>
+              }
+            </ion-card-content>
+          </ion-card>
         }
       }
     </ion-content>
@@ -145,65 +140,88 @@ import { ReportsApiService, PlataformaStats, PlataformasReport } from '../core/s
     .pc-name { font-size:11px; font-weight:700; color:rgba(241,245,249,0.7); }
     .pc-count { font-size:14px; font-weight:900; color:var(--pc, #a78bfa); }
     .rep-card { margin:6px 16px; }
-    .rep-stats { display:flex; gap:0; margin-bottom:16px; }
-    .rep-stat { flex:1; text-align:center; border-right:1px solid rgba(255,255,255,0.06); }
-    .rep-stat:last-child { border-right:none; }
-    .rep-val { font-size:20px; font-weight:900; letter-spacing:-0.02em; }
-    .rep-lbl { font-size:10px; color:rgba(241,245,249,0.35); margin-top:2px; }
     .rep-table-title { font-size:12px; font-weight:700; color:rgba(241,245,249,0.5); margin-bottom:10px; }
-    .rep-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+    .rep-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05); gap:8px; }
     .rep-row:last-child { border-bottom:none; }
-    .rep-warn { background:rgba(245,158,11,0.04); border-radius:6px; padding:8px 6px; }
     .rep-nombre { font-size:13px; font-weight:600; color:#f1f5f9; }
-    .rep-vence { font-size:11px; color:#f59e0b; margin-top:2px; }
-    .vence-r { color:#f43f5e; }
-    .rep-monto { font-size:13px; font-weight:700; color:#10b981; }
-    .combo-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+    .rep-cuenta { font-size:11px; color:rgba(241,245,249,0.4); margin-top:2px; font-family:monospace; }
+    .otras-plt { display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; }
+    .chip-solo { font-size:11px; color:rgba(241,245,249,0.3); font-style:italic; flex-shrink:0; }
+    .combo-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); gap:8px; }
     .combo-chips { display:flex; flex-wrap:wrap; gap:4px; }
-    .combo-chip { --background:rgba(124,58,237,0.1); --color:#a78bfa; font-size:11px; height:22px; }
+    .combo-chip { --background:rgba(var(--pc-rgb,124,58,237),0.1); --color:var(--pc,#a78bfa); font-size:11px; height:22px; }
     .combo-cnt { font-size:12px; color:rgba(241,245,249,0.4); flex-shrink:0; margin-left:8px; }
     .upsell-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05); gap:8px; }
     .upsell-nombre { font-size:13px; font-weight:600; color:#f1f5f9; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .upsell-svcs { display:flex; gap:4px; flex-wrap:wrap; }
     .upsell-badge { font-size:10px; }
-    .sel-msg { text-align:center; color:rgba(241,245,249,0.3); padding:60px 16px; font-size:14px; }
+    .sel-msg { text-align:center; color:rgba(241,245,249,0.3); padding:24px 16px; font-size:13px; }
   `],
 })
 export class PlataformasReportPage implements OnInit {
   loading = signal(true);
-  stats = signal<PlataformaStats[]>([]);
-  reporte = signal<PlataformasReport | null>(null);
+  report = signal<PlataformasReport | null>(null);
+  servicios = signal<Servicio[]>([]);
   plataformaActiva = signal('');
-  loadingRep = signal(false);
 
-  constructor(private reportsApi: ReportsApiService, public navCtrl: NavController) {
-    addIcons({ chevronBackOutline, trendingUpOutline });
+  clientesActivos = computed<PlataformaClienteItem[]>(() => {
+    const r = this.report();
+    const p = this.plataformaActiva();
+    if (!r || !p) return [];
+    return r.plataformas.find(x => x.nombre === p)?.clientes ?? [];
+  });
+
+  private colorMap = computed(() => {
+    const m = new Map<string, string>();
+    for (const s of this.servicios()) m.set(s.nombre, s.color);
+    return m;
+  });
+
+  private iconoMap = computed(() => {
+    const m = new Map<string, string>();
+    for (const s of this.servicios()) m.set(s.nombre, s.icono);
+    return m;
+  });
+
+  constructor(
+    private reportsApi: ReportsApiService,
+    private serviciosApi: ServiciosApiService,
+    public navCtrl: NavController,
+  ) {
+    addIcons({ chevronBackOutline, linkOutline, trendingUpOutline });
   }
 
-  ngOnInit() {
-    this.reportsApi.getPlataformasStats().subscribe({
-      next: s => { this.stats.set(s); this.loading.set(false); if (s.length) this.seleccionar(s[0]); },
-      error: () => this.loading.set(false),
-    });
-  }
+  ngOnInit() { this.load(); }
 
-  async doRefresh(ev: any) {
+  async load() {
     this.loading.set(true);
-    this.reportsApi.getPlataformasStats().subscribe({
-      next: s => { this.stats.set(s); this.loading.set(false); if (s.length) this.seleccionar(s[0]); },
-      error: () => { this.loading.set(false); ev.target.complete(); },
-    });
-    ev.target.complete();
+    await Promise.all([
+      new Promise<void>(res => this.reportsApi.getPlataformas().subscribe({
+        next: data => {
+          this.report.set(data);
+          if (data.plataformas.length > 0) this.plataformaActiva.set(data.plataformas[0].nombre);
+          res();
+        },
+        error: () => res(),
+      })),
+      new Promise<void>(res => this.serviciosApi.getAll(true).subscribe({
+        next: data => { this.servicios.set(data); res(); },
+        error: () => res(),
+      })),
+    ]);
+    this.loading.set(false);
   }
 
-  seleccionar(p: PlataformaStats) {
-    this.plataformaActiva.set(p.nombre);
-    this.reportsApi.getPlataformaReport(p.nombre).subscribe(r => this.reporte.set(r));
+  async doRefresh(ev: any) { await this.load(); ev.target.complete(); }
+
+  seleccionar(nombre: string) {
+    this.plataformaActiva.set(nombre);
   }
 
-  fmt(val: number): string {
-    if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
-    if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}k`;
-    return `$${val}`;
+  getColor(nombre: string): string {
+    return this.colorMap().get(nombre) || '#64748b';
+  }
+
+  getIcono(nombre: string): string {
+    return this.iconoMap().get(nombre) || '📺';
   }
 }

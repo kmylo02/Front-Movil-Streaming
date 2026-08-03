@@ -4,11 +4,13 @@ import { FormsModule } from '@angular/forms';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonRefresher, IonRefresherContent, IonList, IonItem, IonLabel, IonModal, IonInput,
-  IonSelect, IonSelectOption, IonBadge, IonSpinner, NavController, AlertController, LoadingController, ToastController,
+  IonSelect, IonSelectOption, IonBadge, IonSpinner, IonActionSheet,
+  NavController, AlertController, LoadingController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { addOutline, closeOutline, pencilOutline, trashOutline, chevronBackOutline, personOutline, keyOutline } from 'ionicons/icons';
 import { UsuariosApiService, Usuario } from '../core/services/api.service';
+import { AuthService } from '../core/services/auth.service';
 
 @Component({
   selector: 'app-usuarios',
@@ -17,7 +19,7 @@ import { UsuariosApiService, Usuario } from '../core/services/api.service';
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonRefresher, IonRefresherContent, IonList, IonItem, IonLabel, IonModal, IonInput,
-    IonSelect, IonSelectOption, IonBadge, IonSpinner,
+    IonSelect, IonSelectOption, IonBadge, IonSpinner, IonActionSheet,
   ],
   template: `
     <ion-header>
@@ -58,7 +60,7 @@ import { UsuariosApiService, Usuario } from '../core/services/api.service';
       } @else {
         <ion-list class="usr-list">
           @for (u of usuarios(); track u._id) {
-            <ion-item class="usr-item" button (click)="openModal(u)">
+            <ion-item class="usr-item" button (click)="openActions(u)">
               <div class="usr-avatar" slot="start">{{ u.nombre.charAt(0).toUpperCase() }}</div>
               <ion-label>
                 <h3>{{ u.nombre }}</h3>
@@ -77,7 +79,17 @@ import { UsuariosApiService, Usuario } from '../core/services/api.service';
       }
     </ion-content>
 
-    <!-- Modal -->
+    <!-- Action Sheet -->
+    @if (seleccionado()) {
+      <ion-action-sheet
+        [isOpen]="showActions()"
+        [header]="seleccionado()!.nombre"
+        [buttons]="actionButtons()"
+        (didDismiss)="showActions.set(false)">
+      </ion-action-sheet>
+    }
+
+    <!-- Modal crear/editar -->
     <ion-modal [isOpen]="showModal()" (didDismiss)="showModal.set(false)">
       <ng-template>
         <ion-header>
@@ -103,7 +115,7 @@ import { UsuariosApiService, Usuario } from '../core/services/api.service';
             </ion-item>
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">Usuario *</ion-label>
-              <ion-input [(ngModel)]="form.username" placeholder="nombre_usuario" [readonly]="!!editando()"></ion-input>
+              <ion-input [(ngModel)]="form.username" placeholder="nombre_usuario"></ion-input>
             </ion-item>
             @if (!editando()) {
               <ion-item class="f-item" lines="none">
@@ -116,15 +128,38 @@ import { UsuariosApiService, Usuario } from '../core/services/api.service';
               <ion-select [(ngModel)]="form.rol" interface="action-sheet">
                 <ion-select-option value="admin">Admin</ion-select-option>
                 <ion-select-option value="operador">Operador</ion-select-option>
-                <ion-select-option value="soporte">Soporte</ion-select-option>
               </ion-select>
             </ion-item>
-            @if (editando()) {
-              <ion-item class="f-item" lines="none">
-                <ion-label position="stacked">Nueva contraseña (dejar vacío para no cambiar)</ion-label>
-                <ion-input [(ngModel)]="form.newPassword" type="password" placeholder="••••••"></ion-input>
-              </ion-item>
-            }
+          </div>
+        </ion-content>
+      </ng-template>
+    </ion-modal>
+
+    <!-- Modal restablecer contraseña -->
+    <ion-modal [isOpen]="showPasswordModal()" (didDismiss)="showPasswordModal.set(false)">
+      <ng-template>
+        <ion-header>
+          <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button (click)="showPasswordModal.set(false)"><ion-icon name="close-outline"></ion-icon></ion-button>
+            </ion-buttons>
+            <ion-title>Restablecer contraseña</ion-title>
+            <ion-buttons slot="end">
+              <ion-button [disabled]="saving() || newPassword.length < 6" (click)="confirmarResetPassword()" color="primary">
+                @if (saving()) { <ion-spinner name="crescent" style="width:20px;height:20px"></ion-spinner> }
+                @else { Guardar }
+              </ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          @if (error()) { <div class="error-banner">{{ error() }}</div> }
+          <div class="modal-form">
+            <p class="pass-subtitle">Nueva contraseña para <strong>{{ seleccionado()?.nombre }}</strong></p>
+            <ion-item class="f-item" lines="none">
+              <ion-label position="stacked">Nueva contraseña (mínimo 6 caracteres)</ion-label>
+              <ion-input [(ngModel)]="newPassword" type="password" placeholder="••••••"></ion-input>
+            </ion-item>
           </div>
         </ion-content>
       </ng-template>
@@ -147,23 +182,45 @@ import { UsuariosApiService, Usuario } from '../core/services/api.service';
     .error-banner { background:rgba(244,63,94,0.12); border:1px solid rgba(244,63,94,0.25); color:#f43f5e; border-radius:10px; padding:10px 14px; font-size:13px; margin:12px 16px 0; }
     .modal-form { padding:16px; display:flex; flex-direction:column; gap:8px; }
     .f-item { --background:rgba(255,255,255,0.05); --border-radius:10px; border:1px solid rgba(255,255,255,0.08); border-radius:10px; }
+    .pass-subtitle { font-size:13px; color:rgba(241,245,249,0.6); margin:0 0 4px; }
   `],
 })
 export class UsuariosPage implements OnInit {
   loading = signal(true);
   usuarios = signal<Usuario[]>([]);
   showModal = signal(false);
+  showPasswordModal = signal(false);
+  showActions = signal(false);
   editando = signal<Usuario | null>(null);
+  seleccionado = signal<Usuario | null>(null);
   saving = signal(false);
   error = signal('');
-  form: Partial<Usuario & { password?: string; newPassword?: string }> = {};
+  form: Partial<Usuario & { password?: string }> = {};
+  newPassword = '';
 
   total = () => this.usuarios().length;
   activos = () => this.usuarios().filter(u => u.activo).length;
   admins = () => this.usuarios().filter(u => u.rol === 'admin').length;
 
+  actionButtons = () => {
+    const u = this.seleccionado();
+    if (!u) return [];
+    const soyYo = u._id === this.auth.usuario()?.id;
+    const btns: any[] = [
+      { text: 'Editar', icon: 'pencil-outline', handler: () => this.openModal(u) },
+      { text: 'Restablecer contraseña', icon: 'key-outline', handler: () => this.openPasswordModal(u) },
+    ];
+    if (!soyYo) {
+      btns.push({ text: u.activo ? 'Desactivar' : 'Activar', handler: () => this.toggleActivo(u) });
+      btns.push({ text: 'Eliminar', role: 'destructive', icon: 'trash-outline', handler: () => this.eliminar(u) });
+    }
+    btns.push({ text: 'Cerrar', role: 'cancel' });
+    return btns;
+  };
+
   constructor(
     private usuariosApi: UsuariosApiService,
+    private auth: AuthService,
     public navCtrl: NavController,
     private alertCtrl: AlertController,
     private loadingCtrl: LoadingController,
@@ -181,11 +238,23 @@ export class UsuariosPage implements OnInit {
     this.loading.set(false);
   }
 
+  openActions(u: Usuario) {
+    this.seleccionado.set(u);
+    this.showActions.set(true);
+  }
+
   openModal(u?: Usuario) {
     this.editando.set(u || null);
     this.form = u ? { nombre: u.nombre, username: u.username, rol: u.rol } : { rol: 'operador' };
     this.error.set('');
     this.showModal.set(true);
+  }
+
+  openPasswordModal(u: Usuario) {
+    this.seleccionado.set(u);
+    this.newPassword = '';
+    this.error.set('');
+    this.showPasswordModal.set(true);
   }
 
   async guardar() {
@@ -200,13 +269,11 @@ export class UsuariosPage implements OnInit {
     this.saving.set(true);
     this.error.set('');
     try {
-      const payload: any = { ...this.form };
-      if (this.form.newPassword) payload.password = this.form.newPassword;
-      delete payload.newPassword;
       if (this.editando()) {
+        const payload = { nombre: this.form.nombre, username: this.form.username, rol: this.form.rol };
         await new Promise<void>((res, rej) => this.usuariosApi.update(this.editando()!._id, payload).subscribe({ next: () => res(), error: rej }));
       } else {
-        await new Promise<void>((res, rej) => this.usuariosApi.create(payload).subscribe({ next: () => res(), error: rej }));
+        await new Promise<void>((res, rej) => this.usuariosApi.create(this.form as any).subscribe({ next: () => res(), error: rej }));
       }
       this.showModal.set(false);
       await this.load();
@@ -215,5 +282,52 @@ export class UsuariosPage implements OnInit {
     } catch (e: any) {
       this.error.set(e?.error?.message || 'Error al guardar');
     } finally { this.saving.set(false); }
+  }
+
+  async confirmarResetPassword() {
+    if (this.newPassword.length < 6) return;
+    this.saving.set(true);
+    this.error.set('');
+    try {
+      await new Promise<void>((res, rej) =>
+        this.usuariosApi.resetPassword(this.seleccionado()!._id, this.newPassword).subscribe({ next: () => res(), error: rej }));
+      this.showPasswordModal.set(false);
+      const t = await this.toastCtrl.create({ message: 'Contraseña restablecida', duration: 2000, color: 'success' });
+      t.present();
+    } catch (e: any) {
+      this.error.set(e?.error?.message || 'Error al restablecer la contraseña');
+    } finally { this.saving.set(false); }
+  }
+
+  async toggleActivo(u: Usuario) {
+    const misId = this.auth.usuario()?.id || '';
+    try {
+      await new Promise<void>((res, rej) => this.usuariosApi.toggle(u._id, misId).subscribe({ next: () => res(), error: rej }));
+      await this.load();
+    } catch (e: any) {
+      const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al cambiar estado', duration: 3000, color: 'danger' });
+      t.present();
+    }
+  }
+
+  async eliminar(u: Usuario) {
+    const misId = this.auth.usuario()?.id || '';
+    const alert = await this.alertCtrl.create({
+      header: 'Eliminar usuario',
+      message: `¿Eliminar a ${u.nombre}?`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Eliminar', role: 'destructive', handler: async () => {
+          try {
+            await new Promise<void>((res, rej) => this.usuariosApi.delete(u._id, misId).subscribe({ next: () => res(), error: rej }));
+            await this.load();
+          } catch (e: any) {
+            const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al eliminar', duration: 3000, color: 'danger' });
+            t.present();
+          }
+        }},
+      ],
+    });
+    await alert.present();
   }
 }
