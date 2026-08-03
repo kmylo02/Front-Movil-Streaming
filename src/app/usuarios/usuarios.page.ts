@@ -204,9 +204,9 @@ export class UsuariosPage implements OnInit {
       if (this.form.newPassword) payload.password = this.form.newPassword;
       delete payload.newPassword;
       if (this.editando()) {
-        await new Promise<void>(res => this.usuariosApi.update(this.editando()!._id, payload).subscribe(() => res()));
+        await new Promise<void>((res, rej) => this.usuariosApi.update(this.editando()!._id, payload).subscribe({ next: () => res(), error: rej }));
       } else {
-        await new Promise<void>(res => this.usuariosApi.create(payload).subscribe(() => res()));
+        await new Promise<void>((res, rej) => this.usuariosApi.create(payload).subscribe({ next: () => res(), error: rej }));
       }
       this.showModal.set(false);
       await this.load();

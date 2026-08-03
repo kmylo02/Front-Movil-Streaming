@@ -221,10 +221,12 @@ export class VentasPage implements OnInit {
             const loading = await this.loadingCtrl.create({ message: 'Renovando…' });
             await loading.present();
             try {
-              await new Promise<void>(res => this.ventasApi.renovar(v._id, +data.meses, +data.monto).subscribe(() => res()));
+              await new Promise<void>((res, rej) => this.ventasApi.renovar(v._id, +data.meses, +data.monto).subscribe({ next: () => res(), error: rej }));
               this.ventaEvents.notificar();
               await this.load();
               this.toast('Venta renovada');
+            } catch (e: any) {
+              this.toast(e?.error?.message || 'Error al renovar', 'danger');
             } finally { loading.dismiss(); }
           },
         },
@@ -237,9 +239,11 @@ export class VentasPage implements OnInit {
     const loading = await this.loadingCtrl.create({ message: 'Pausando…' });
     await loading.present();
     try {
-      await new Promise<void>(res => this.ventasApi.pausar(v._id).subscribe(() => res()));
+      await new Promise<void>((res, rej) => this.ventasApi.pausar(v._id).subscribe({ next: () => res(), error: rej }));
       await this.load();
       this.toast('Venta pausada');
+    } catch (e: any) {
+      this.toast(e?.error?.message || 'Error al pausar', 'danger');
     } finally { loading.dismiss(); }
   }
 
@@ -247,9 +251,11 @@ export class VentasPage implements OnInit {
     const loading = await this.loadingCtrl.create({ message: 'Reactivando…' });
     await loading.present();
     try {
-      await new Promise<void>(res => this.ventasApi.update(v._id, { estado: 'activa' }).subscribe(() => res()));
+      await new Promise<void>((res, rej) => this.ventasApi.update(v._id, { estado: 'activa' }).subscribe({ next: () => res(), error: rej }));
       await this.load();
       this.toast('Venta reactivada');
+    } catch (e: any) {
+      this.toast(e?.error?.message || 'Error al reactivar', 'danger');
     } finally { loading.dismiss(); }
   }
 
@@ -263,10 +269,16 @@ export class VentasPage implements OnInit {
           text: 'Cancelar venta',
           role: 'destructive',
           handler: async () => {
-            await new Promise<void>(res => this.ventasApi.cancelar(v._id).subscribe(() => res()));
-            await this.load();
-            this.ventaEvents.notificar();
-            this.toast('Venta cancelada');
+            const loading = await this.loadingCtrl.create({ message: 'Cancelando…' });
+            await loading.present();
+            try {
+              await new Promise<void>((res, rej) => this.ventasApi.cancelar(v._id).subscribe({ next: () => res(), error: rej }));
+              await this.load();
+              this.ventaEvents.notificar();
+              this.toast('Venta cancelada');
+            } catch (e: any) {
+              this.toast(e?.error?.message || 'Error al cancelar', 'danger');
+            } finally { loading.dismiss(); }
           },
         },
       ],
@@ -290,8 +302,8 @@ export class VentasPage implements OnInit {
     return { activa: 'Activa', por_vencer: 'Por vencer', vencida: 'Vencida', pausada: 'Pausada' }[e] || e;
   }
 
-  async toast(msg: string) {
-    const t = await this.toastCtrl.create({ message: msg, duration: 2000, position: 'bottom', color: 'dark' });
+  async toast(msg: string, color: string = 'dark') {
+    const t = await this.toastCtrl.create({ message: msg, duration: color === 'danger' ? 3000 : 2000, position: 'bottom', color });
     t.present();
   }
 }

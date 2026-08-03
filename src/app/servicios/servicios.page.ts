@@ -212,13 +212,16 @@ export class ServiciosPage implements OnInit {
     this.saving.set(true);
     try {
       if (this.editando()) {
-        await new Promise<void>(res => this.serviciosApi.update(this.editando()!._id, this.form).subscribe(() => res()));
+        await new Promise<void>((res, rej) => this.serviciosApi.update(this.editando()!._id, this.form).subscribe({ next: () => res(), error: rej }));
       } else {
-        await new Promise<void>(res => this.serviciosApi.create(this.form).subscribe(() => res()));
+        await new Promise<void>((res, rej) => this.serviciosApi.create(this.form).subscribe({ next: () => res(), error: rej }));
       }
       this.showModal.set(false);
       await this.load();
       const t = await this.toastCtrl.create({ message: 'Guardado', duration: 2000, color: 'success' });
+      t.present();
+    } catch (e: any) {
+      const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al guardar', duration: 3000, color: 'danger' });
       t.present();
     } finally { this.saving.set(false); }
   }
@@ -230,8 +233,13 @@ export class ServiciosPage implements OnInit {
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         { text: 'Eliminar', role: 'destructive', handler: async () => {
-          await new Promise<void>(res => this.serviciosApi.delete(s._id).subscribe(() => res()));
-          await this.load();
+          try {
+            await new Promise<void>((res, rej) => this.serviciosApi.delete(s._id).subscribe({ next: () => res(), error: rej }));
+            await this.load();
+          } catch (e: any) {
+            const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al eliminar', duration: 3000, color: 'danger' });
+            t.present();
+          }
         }},
       ],
     });

@@ -169,9 +169,9 @@ export class ClientesPage implements OnInit {
     this.error.set('');
     try {
       if (this.editando()) {
-        await new Promise<void>(res => this.clientesApi.update(this.editando()!._id, this.form).subscribe(() => res()));
+        await new Promise<void>((res, rej) => this.clientesApi.update(this.editando()!._id, this.form).subscribe({ next: () => res(), error: rej }));
       } else {
-        await new Promise<void>(res => this.clientesApi.create(this.form).subscribe(() => res()));
+        await new Promise<void>((res, rej) => this.clientesApi.create(this.form).subscribe({ next: () => res(), error: rej }));
       }
       this.showModal.set(false);
       await this.load();

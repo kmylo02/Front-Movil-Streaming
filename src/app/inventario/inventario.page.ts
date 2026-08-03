@@ -112,15 +112,15 @@ import { Clipboard } from '@capacitor/clipboard';
           <div class="modal-form">
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">Plataforma *</ion-label>
-              <ion-select [(ngModel)]="form.nombreServicio" interface="action-sheet">
+              <ion-select [(ngModel)]="form.servicioId" (ionChange)="onServicioChange()" interface="action-sheet">
                 @for (s of servicios(); track s._id) {
-                  <ion-select-option [value]="s.nombre">{{ s.nombre }}</ion-select-option>
+                  <ion-select-option [value]="s._id">{{ s.nombre }}</ion-select-option>
                 }
               </ion-select>
             </ion-item>
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">Tipo</ion-label>
-              <ion-select [(ngModel)]="form.tipo" interface="action-sheet">
+              <ion-select [(ngModel)]="form.tipo" (ionChange)="onTipoChange()" interface="action-sheet">
                 <ion-select-option value="compartida">Compartida (perfiles)</ion-select-option>
                 <ion-select-option value="individual">Individual</ion-select-option>
               </ion-select>
@@ -130,14 +130,34 @@ import { Clipboard } from '@capacitor/clipboard';
               <ion-input [(ngModel)]="form.email" type="email" placeholder="cuenta@gmail.com"></ion-input>
             </ion-item>
             <ion-item class="f-item" lines="none">
-              <ion-label position="stacked">Clave</ion-label>
+              <ion-label position="stacked">Clave *</ion-label>
               <ion-input [(ngModel)]="form.clave" type="text" placeholder="Contraseña"></ion-input>
               <ion-button slot="end" fill="clear" size="small" (click)="generarClave()">Generar</ion-button>
             </ion-item>
-            <ion-item class="f-item" lines="none">
-              <ion-label position="stacked">Total perfiles</ion-label>
-              <ion-input [(ngModel)]="form.totalPerfiles" type="number" placeholder="4"></ion-input>
-            </ion-item>
+            @if (form.tipo === 'individual') {
+              <ion-item class="f-item" lines="none">
+                <ion-label position="stacked">Número de perfil específico *</ion-label>
+                <ion-input [(ngModel)]="form.perfilNumero" type="number" placeholder="Ej: 3" min="1" max="7"></ion-input>
+              </ion-item>
+            } @else {
+              <ion-item class="f-item" lines="none">
+                <ion-label position="stacked">Total perfiles</ion-label>
+                <ion-input [(ngModel)]="form.totalPerfiles" type="number" placeholder="4" (ionChange)="actualizarClaves()"></ion-input>
+              </ion-item>
+            }
+            @if ((form.totalPerfiles || 0) > 0 && form.tipo !== 'individual' && servicioRequiereClave()) {
+              <div class="claves-perfil-block">
+                <div class="claves-perfil-title">Claves por perfil (opcional)</div>
+                <div class="claves-grid">
+                  @for (i of perfilesRange(); track i) {
+                    <ion-item class="f-item claves-item" lines="none">
+                      <ion-label position="stacked">Perfil {{ i + 1 }}</ion-label>
+                      <ion-input [(ngModel)]="clavesPerfil[i]" placeholder="PIN"></ion-input>
+                    </ion-item>
+                  }
+                </div>
+              </div>
+            }
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">Valor cuenta ($)</ion-label>
               <ion-input [(ngModel)]="form.valorCuenta" type="number" placeholder="0"></ion-input>
@@ -227,6 +247,10 @@ import { Clipboard } from '@capacitor/clipboard';
     .act-del { color:#f43f5e; border-color:rgba(244,63,94,0.2); background:rgba(244,63,94,0.08); }
     .modal-form { padding:16px; display:flex; flex-direction:column; gap:8px; }
     .f-item { --background:rgba(255,255,255,0.05); --border-radius:10px; border:1px solid rgba(255,255,255,0.08); border-radius:10px; }
+    .claves-perfil-block { margin-top: 4px; }
+    .claves-perfil-title { font-size: 12px; font-weight: 600; color: rgba(241,245,249,0.5); margin-bottom: 8px; }
+    .claves-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+    .claves-item { margin: 0; }
     .afect-intro { text-align:center; padding:24px 20px 12px; }
     .afect-icon { font-size:36px; margin-bottom:8px; }
     .afect-title { font-size:17px; font-weight:700; color:#f1f5f9; margin-bottom:4px; }
@@ -247,11 +271,17 @@ export class InventarioPage implements OnInit {
   showModal = signal(false);
   editando = signal<Cuenta | null>(null);
   saving = signal(false);
-  form: Partial<Cuenta> & { renovable?: boolean } = {};
+  form: Partial<Cuenta> & { renovable?: boolean; perfilNumero?: number } = {};
+  clavesPerfil: string[] = [];
 
   busqueda = signal('');
   plataformasSeleccionadas = signal<Set<string>>(new Set());
   claveOriginal = '';
+  selectedServicioId = signal<string>('');
+
+  servicioRequiereClave = computed(() =>
+    this.servicios().find(s => s._id === this.selectedServicioId())?.requiereClavePerfil ?? false
+  );
 
   showAfectados = signal(false);
   clientesAfectados = signal<any[]>([]);
@@ -313,7 +343,32 @@ export class InventarioPage implements OnInit {
     this.editando.set(c || null);
     this.claveOriginal = c?.clave || '';
     this.form = c ? { ...c } : { tipo: 'compartida', totalPerfiles: 4 };
+    this.selectedServicioId.set(c?.servicioId || '');
+    this.clavesPerfil = c ? c.perfiles.map(p => p.clavePerfil || '') : [];
     this.showModal.set(true);
+  }
+
+  onServicioChange() {
+    const s = this.servicios().find(x => x._id === this.form.servicioId);
+    if (s) this.form.nombreServicio = s.nombre;
+    this.selectedServicioId.set(this.form.servicioId || '');
+  }
+
+  onTipoChange() {
+    if (this.form.tipo === 'individual') {
+      this.form.totalPerfiles = 1;
+      this.form.perfilNumero = this.form.perfilNumero || 1;
+    }
+    this.actualizarClaves();
+  }
+
+  actualizarClaves() {
+    const n = Number(this.form.totalPerfiles) || 0;
+    this.clavesPerfil = Array.from({ length: n }, (_, i) => this.clavesPerfil[i] || '');
+  }
+
+  perfilesRange(): number[] {
+    return Array.from({ length: Number(this.form.totalPerfiles) || 0 }, (_, i) => i);
   }
 
   private static readonly PALABRAS_CLAVE = [
@@ -345,17 +400,29 @@ export class InventarioPage implements OnInit {
   }
 
   async guardar() {
-    if (!this.form.email || !this.form.nombreServicio) return;
+    if (!this.form.servicioId || !this.form.email || !this.form.clave) {
+      const t = await this.toastCtrl.create({ message: 'Completa plataforma, email y clave', duration: 2500, color: 'warning' });
+      return t.present();
+    }
+    if (this.form.tipo === 'individual' && !this.form.perfilNumero) {
+      const t = await this.toastCtrl.create({ message: 'Indica el número de perfil', duration: 2500, color: 'warning' });
+      return t.present();
+    }
     this.saving.set(true);
     const claveNueva = this.form.clave;
     const claveCambio = !!this.editando() && !!claveNueva && claveNueva !== this.claveOriginal;
     const cuentaId = this.editando()?._id;
+    const dto = {
+      ...this.form,
+      totalPerfiles: Number(this.form.totalPerfiles) || 0,
+      perfilNumero: this.form.tipo === 'individual' ? Number(this.form.perfilNumero) : undefined,
+      valorCuenta: this.form.valorCuenta != null && (this.form.valorCuenta as any) !== '' ? Number(this.form.valorCuenta) : undefined,
+      valorPantalla: this.form.valorPantalla != null && (this.form.valorPantalla as any) !== '' ? Number(this.form.valorPantalla) : undefined,
+      clavesPerfil: this.clavesPerfil.filter(Boolean),
+    };
     try {
-      if (this.editando()) {
-        await new Promise<void>(res => this.inventarioApi.update(this.editando()!._id, this.form).subscribe({ next: () => res(), error: () => res() }));
-      } else {
-        await new Promise<void>(res => this.inventarioApi.create(this.form).subscribe({ next: () => res(), error: () => res() }));
-      }
+      const op = cuentaId ? this.inventarioApi.update(cuentaId, dto) : this.inventarioApi.create(dto);
+      await new Promise<void>((res, rej) => op.subscribe({ next: () => res(), error: rej }));
       this.showModal.set(false);
       await this.load();
       const t = await this.toastCtrl.create({ message: 'Guardado', duration: 2000, color: 'success' });
@@ -370,6 +437,13 @@ export class InventarioPage implements OnInit {
           error: () => {},
         });
       }
+    } catch (e: any) {
+      const msg = e?.error?.message;
+      const t = await this.toastCtrl.create({
+        message: Array.isArray(msg) ? msg.join(', ') : (msg || 'Error al guardar'),
+        duration: 3500, color: 'danger',
+      });
+      t.present();
     } finally { this.saving.set(false); }
   }
 
@@ -385,8 +459,13 @@ export class InventarioPage implements OnInit {
   }
 
   async toggleCuenta(c: Cuenta) {
-    await new Promise<void>(res => this.inventarioApi.toggle(c._id).subscribe({ next: () => res(), error: () => res() }));
-    await this.load();
+    try {
+      await new Promise<void>((res, rej) => this.inventarioApi.toggle(c._id).subscribe({ next: () => res(), error: rej }));
+      await this.load();
+    } catch (e: any) {
+      const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al cambiar estado', duration: 3000, color: 'danger' });
+      t.present();
+    }
   }
 
   async eliminar(c: Cuenta) {
@@ -396,8 +475,13 @@ export class InventarioPage implements OnInit {
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         { text: 'Eliminar', role: 'destructive', handler: async () => {
-          await new Promise<void>(res => this.inventarioApi.delete(c._id).subscribe({ next: () => res(), error: () => res() }));
-          await this.load();
+          try {
+            await new Promise<void>((res, rej) => this.inventarioApi.delete(c._id).subscribe({ next: () => res(), error: rej }));
+            await this.load();
+          } catch (e: any) {
+            const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al eliminar', duration: 3000, color: 'danger' });
+            t.present();
+          }
         }},
       ],
     });
