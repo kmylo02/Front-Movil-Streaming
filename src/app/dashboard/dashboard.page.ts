@@ -75,16 +75,41 @@ import { AuthService } from '../core/services/auth.service';
           </ion-row>
         </ion-grid>
 
-        <!-- Ingresos chart -->
-        @if (data()!.ingresosMensuales.length > 0) {
+        <!-- Resumen financiero -->
+        @if (financiero().length > 0) {
           <ion-card class="chart-card">
             <ion-card-content>
-              <div class="chart-title">Ingresos — últimos 6 meses</div>
-              <div class="bar-chart">
-                @for (item of chartBars(); track item.label) {
-                  <div class="bar-col">
-                    <div class="bar" [style.height.%]="item.pct" [class.bar-current]="item.current"></div>
-                    <div class="bar-lbl">{{ item.label }}</div>
+              <div class="fin-header">
+                <div class="chart-title">Resumen financiero {{ anioActual }}</div>
+                <div class="fin-legend">
+                  <span class="fl-item"><span class="fl-dot" style="background:#10b981"></span>Ingresos</span>
+                  <span class="fl-item"><span class="fl-dot" style="background:#f43f5e"></span>Gastos</span>
+                </div>
+              </div>
+              <div class="fin-totales-row">
+                <div class="fin-total">
+                  <span class="ft-val" style="color:#10b981">{{ formatCurrency(totalFinanciero('ingresos')) }}</span>
+                  <span class="ft-lbl">Ingresos</span>
+                </div>
+                <div class="fin-total">
+                  <span class="ft-val" style="color:#f43f5e">{{ formatCurrency(totalFinanciero('gastos')) }}</span>
+                  <span class="ft-lbl">Gastos</span>
+                </div>
+                <div class="fin-total">
+                  <span class="ft-val" [style.color]="totalFinanciero('ganancia') >= 0 ? '#a78bfa' : '#f43f5e'">
+                    {{ formatCurrency(totalFinanciero('ganancia')) }}
+                  </span>
+                  <span class="ft-lbl">Ganancia</span>
+                </div>
+              </div>
+              <div class="stacked-chart">
+                @for (f of financiero(); track f.mes) {
+                  <div class="s-col">
+                    <div class="s-bars">
+                      <div class="s-bar s-ing" [style.height.px]="finBarH(f.ingresos)" [title]="'Ingresos: ' + formatCurrency(f.ingresos)"></div>
+                      <div class="s-bar s-gas" [style.height.px]="finBarH(f.gastos)" [title]="'Gastos: ' + formatCurrency(f.gastos)"></div>
+                    </div>
+                    <div class="s-lbl">{{ f.mes.slice(0,3) }}</div>
                   </div>
                 }
               </div>
@@ -149,12 +174,23 @@ import { AuthService } from '../core/services/auth.service';
               <div class="mov-total-val">{{ formatCurrency(movimientos()!.totalMes) }}</div>
               <div class="mov-total-lbl">Total del mes</div>
             </div>
+            <div class="mov-extra-stats">
+              <div class="mov-mini-stat">
+                <div class="mov-mini-val">{{ totalVentasMes() }}</div>
+                <div class="mov-mini-lbl">Ventas realizadas</div>
+              </div>
+              <div class="mov-mini-stat">
+                <div class="mov-mini-val">{{ movimientos()!.clientes.length }}</div>
+                <div class="mov-mini-lbl">Clientes activos</div>
+              </div>
+            </div>
             <ion-list>
               @for (c of movimientos()!.clientes; track c.clienteId) {
                 <ion-item>
                   <ion-label>
                     <h3>{{ c.nombreCliente }}</h3>
                     <p>{{ c.servicios.join(', ') }}</p>
+                    <p class="mov-cli-pct">{{ c.cantidadVentas }} venta(s) · {{ c.pct }}% del total</p>
                   </ion-label>
                   <div slot="end" class="mov-monto">{{ formatCurrency(c.totalMonto) }}</div>
                 </ion-item>
@@ -208,6 +244,27 @@ import { AuthService } from '../core/services/auth.service';
     .mov-total-val { font-size: 32px; font-weight: 900; letter-spacing: -0.03em; color: #10b981; }
     .mov-total-lbl { font-size: 13px; color: rgba(241,245,249,0.4); margin-top: 4px; }
     .mov-monto { font-size: 13px; font-weight: 700; color: #10b981; }
+    .fin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .fin-legend { display: flex; gap: 10px; }
+    .fl-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: rgba(241,245,249,0.5); }
+    .fl-dot { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+    .fin-totales-row { display: flex; gap: 0; margin-bottom: 14px; }
+    .fin-total { flex: 1; text-align: center; border-right: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; }
+    .fin-total:last-child { border-right: none; }
+    .ft-val { font-size: 14px; font-weight: 900; letter-spacing: -0.02em; }
+    .ft-lbl { font-size: 9px; color: rgba(241,245,249,0.35); margin-top: 2px; }
+    .stacked-chart { display: flex; align-items: flex-end; gap: 2px; height: 70px; }
+    .s-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; height: 100%; justify-content: flex-end; }
+    .s-bars { display: flex; gap: 1px; align-items: flex-end; width: 100%; }
+    .s-bar { flex: 1; border-radius: 2px 2px 0 0; min-height: 2px; }
+    .s-ing { background: #10b981; }
+    .s-gas { background: #f43f5e; }
+    .s-lbl { font-size: 8px; color: rgba(241,245,249,0.3); margin-top: 2px; }
+    .mov-extra-stats { display: flex; gap: 0; padding: 0 16px 16px; }
+    .mov-mini-stat { flex: 1; text-align: center; }
+    .mov-mini-val { font-size: 18px; font-weight: 800; color: #f1f5f9; }
+    .mov-mini-lbl { font-size: 10px; color: rgba(241,245,249,0.4); margin-top: 2px; }
+    .mov-cli-pct { font-size: 10px; color: rgba(241,245,249,0.35); margin-top: 2px; }
   `],
 })
 export class DashboardPage implements OnInit, OnDestroy {
@@ -218,23 +275,13 @@ export class DashboardPage implements OnInit, OnDestroy {
   showMovimientos = signal(false);
   private sub!: Subscription;
 
+  anioActual = new Date().getFullYear();
+
   gastosMes = computed(() => {
     const hoy = new Date();
     const m = hoy.getMonth();
     const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     return this.financiero().find(f => f.mes === meses[m])?.gastos ?? 0;
-  });
-
-  chartBars = computed(() => {
-    const arr = this.data()?.ingresosMensuales ?? [];
-    if (!arr.length) return [];
-    const max = Math.max(...arr.map(i => i.ingresos), 1);
-    const hoy = new Date();
-    return arr.slice(-6).map(item => ({
-      label: ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][item._id.mes],
-      pct: Math.round((item.ingresos / max) * 100),
-      current: item._id.mes === hoy.getMonth() + 1 && item._id.anio === hoy.getFullYear(),
-    }));
   });
 
   constructor(
@@ -286,5 +333,18 @@ export class DashboardPage implements OnInit, OnDestroy {
 
   diasRestantes(vence: string): number {
     return Math.ceil((new Date(vence).getTime() - Date.now()) / 86400000);
+  }
+
+  totalFinanciero(campo: 'ingresos' | 'gastos' | 'ganancia'): number {
+    return this.financiero().reduce((s, f) => s + f[campo], 0);
+  }
+
+  totalVentasMes(): number {
+    return (this.movimientos()?.clientes ?? []).reduce((s, c) => s + c.cantidadVentas, 0);
+  }
+
+  finBarH(val: number): number {
+    const max = Math.max(...this.financiero().flatMap(f => [f.ingresos, f.gastos]), 1);
+    return Math.max(2, Math.round((val / max) * 56));
   }
 }

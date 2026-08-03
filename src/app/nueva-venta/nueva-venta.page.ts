@@ -1,6 +1,7 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonItem, IonLabel, IonInput, IonSelect, IonSelectOption, IonNote, IonChip,
@@ -240,6 +241,7 @@ export class NuevaVentaPage implements OnInit {
     private serviciosApi: ServiciosApiService,
     private inventarioApi: InventarioApiService,
     private ventaEvents: VentaEventsService,
+    private route: ActivatedRoute,
     public navCtrl: NavController,
     private loadingCtrl: LoadingController,
     private toastCtrl: ToastController,
@@ -249,6 +251,22 @@ export class NuevaVentaPage implements OnInit {
 
   ngOnInit() {
     this.calcFechaVenc();
+
+    const clienteId = this.route.snapshot.queryParams['clienteId'];
+    const nombre = this.route.snapshot.queryParams['nombre'];
+    if (clienteId) {
+      this.clientesApi.getAll().subscribe(cs => {
+        const found = cs.find(c => c._id === clienteId);
+        if (found) {
+          this.clienteSeleccionado.set(found);
+          this.clienteBusqueda = found.nombre;
+        } else if (nombre) {
+          this.clienteSeleccionado.set({ _id: clienteId, nombre } as Cliente);
+          this.clienteBusqueda = nombre;
+        }
+      });
+    }
+
     this.serviciosApi.getAll().subscribe(svcs => {
       this.serviciosForm.set(svcs.filter(s => s.activo).map(s => ({
         servicio: s, seleccionado: false, cuentaId: '',

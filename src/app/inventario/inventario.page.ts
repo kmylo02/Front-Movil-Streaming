@@ -54,6 +54,34 @@ import { Clipboard } from '@capacitor/clipboard';
       <ion-searchbar [ngModel]="busqueda()" (ngModelChange)="busqueda.set($event)"
                      placeholder="Buscar por email…" debounce="300"></ion-searchbar>
 
+      <div class="filtros-row">
+        <ion-item class="f-select" lines="none">
+          <ion-select [ngModel]="filtroEstado()" (ngModelChange)="filtroEstado.set($event)"
+                      interface="popover" placeholder="Vigencia">
+            <ion-select-option value="">Todos los estados</ion-select-option>
+            <ion-select-option value="vig-vencida">🔴 Vencidas</ion-select-option>
+            <ion-select-option value="vig-proxima">🟡 Próximas a vencer</ion-select-option>
+            <ion-select-option value="vig-vigente">🟢 Vigentes</ion-select-option>
+            <ion-select-option value="sin-fecha">⚪ Sin fecha</ion-select-option>
+          </ion-select>
+        </ion-item>
+        <ion-item class="f-select" lines="none">
+          <ion-select [ngModel]="filtroRenovable()" (ngModelChange)="filtroRenovable.set($event)"
+                      interface="popover" placeholder="Renovación">
+            <ion-select-option value="">Todas</ion-select-option>
+            <ion-select-option value="si">♻ Con renovación</ion-select-option>
+            <ion-select-option value="no">Sin renovación</ion-select-option>
+          </ion-select>
+        </ion-item>
+        <ion-item class="f-select" lines="none">
+          <ion-select [ngModel]="ordenarPor()" (ngModelChange)="ordenarPor.set($event)" interface="popover">
+            <ion-select-option value="vencimiento">Vencimiento próximo</ion-select-option>
+            <ion-select-option value="estado">Estado de urgencia</ion-select-option>
+            <ion-select-option value="plataforma">Plataforma</ion-select-option>
+          </ion-select>
+        </ion-item>
+      </div>
+
       @if (loading()) {
         <div class="loading-c"><ion-spinner name="crescent"></ion-spinner></div>
       } @else {
@@ -65,6 +93,17 @@ import { Clipboard } from '@capacitor/clipboard';
                 <ion-badge [color]="c.activa ? 'success' : 'medium'">{{ c.activa ? 'Activa' : 'Inactiva' }}</ion-badge>
               </div>
               <div class="cuenta-email">{{ c.email }}</div>
+              @if (c.fechaVencimientoCuenta) {
+                <div class="vigencia-row">
+                  <span class="vig-badge" [ngClass]="estadoVigencia(c.fechaVencimientoCuenta)">
+                    {{ labelVigencia(c.fechaVencimientoCuenta) }}
+                  </span>
+                  <span class="vig-fecha">{{ formatFecha(c.fechaVencimientoCuenta) }}</span>
+                  @if (c.renovable) { <span class="vig-badge renov-badge">♻</span> }
+                </div>
+              } @else if (c.renovable) {
+                <div class="vigencia-row"><span class="vig-badge renov-badge">♻ Renovable</span></div>
+              }
               <div class="perfiles-row">
                 @for (p of c.perfiles; track p.numero) {
                   <div class="perfil-pip" [class.pip-occ]="p.ocupado" [title]="p.ocupado ? p.clienteNombre || 'Ocupado' : 'Libre'"></div>
@@ -72,6 +111,9 @@ import { Clipboard } from '@capacitor/clipboard';
                 <span class="perfiles-txt">{{ libres(c) }}/{{ c.totalPerfiles }} libres</span>
               </div>
               <div class="cuenta-actions">
+                <button class="act-btn" (click)="verDetalle(c)">
+                  <ion-icon name="eye-outline"></ion-icon>
+                </button>
                 <button class="act-btn" (click)="openModal(c)">
                   <ion-icon name="pencil-outline"></ion-icon>
                 </button>
@@ -216,6 +258,62 @@ import { Clipboard } from '@capacitor/clipboard';
         </ion-content>
       </ng-template>
     </ion-modal>
+
+    <!-- Modal detalle perfiles / clientes asignados -->
+    <ion-modal [isOpen]="!!detalleModal()" (didDismiss)="detalleModal.set(null)">
+      <ng-template>
+        <ion-header>
+          <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button (click)="detalleModal.set(null)"><ion-icon name="close-outline"></ion-icon></ion-button>
+            </ion-buttons>
+            <ion-title>{{ detalleModal()?.nombreServicio }}</ion-title>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          @if (detalleModal(); as d) {
+            <div class="detalle-header">
+              <div class="detalle-email">{{ d.email }}</div>
+              <div class="detalle-sub">
+                <span class="tipo-badge" [class.individual]="d.tipo === 'individual'">
+                  {{ d.tipo === 'individual' ? 'Individual' : 'Compartida' }}
+                </span>
+                <span class="detalle-stat">{{ libres(d) }}/{{ d.totalPerfiles }} disponibles</span>
+              </div>
+            </div>
+            @if (clientesAsignados(d).length > 0) {
+              <div class="detalle-section-title">👥 Clientes asignados</div>
+              @for (ca of clientesAsignados(d); track ca.perfil) {
+                <div class="cliente-row">
+                  <div class="cr-avatar">{{ ca.nombre.charAt(0) }}</div>
+                  <div class="cr-info">
+                    <div class="cr-nombre">{{ ca.nombre }}</div>
+                    <div class="cr-perfil">Perfil {{ ca.perfil }}{{ ca.pin ? ' · PIN: ' + ca.pin : '' }}</div>
+                  </div>
+                  <span class="pr-badge ocupado-badge">En uso</span>
+                </div>
+              }
+            }
+            <div class="detalle-section-title">Detalle de perfiles</div>
+            @for (p of d.perfiles; track p.numero) {
+              <div class="perfil-row" [class.ocupado]="p.ocupado">
+                <div class="pr-num">Perfil {{ p.numero }}</div>
+                <div class="pr-info">
+                  @if (p.ocupado) {
+                    <span class="pr-cliente">👤 {{ p.clienteNombre }}</span>
+                    <span class="pr-badge ocupado-badge">En uso</span>
+                  } @else {
+                    <span class="pr-libre">Disponible</span>
+                    <span class="pr-badge libre-badge">Libre</span>
+                  }
+                </div>
+                @if (p.clavePerfil) { <div class="pr-clave">PIN: {{ p.clavePerfil }}</div> }
+              </div>
+            }
+          }
+        </ion-content>
+      </ng-template>
+    </ion-modal>
   `,
   styles: [`
     .loading-c { display:flex; justify-content:center; padding:60px 0; }
@@ -261,6 +359,37 @@ import { Clipboard } from '@capacitor/clipboard';
     .afect-msg { font-size:11px; font-family:monospace; color:rgba(241,245,249,0.6); background:rgba(0,0,0,0.25); border-radius:8px; padding:10px; white-space:pre-wrap; line-height:1.6; max-height:160px; overflow-y:auto; margin-bottom:10px; }
     .afect-copy-btn { width:100%; background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.3); border-radius:10px; padding:10px; color:#a78bfa; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; }
     .afect-empty { text-align:center; color:rgba(241,245,249,0.3); padding:40px 20px; font-size:14px; }
+    .filtros-row { display:flex; gap:8px; padding:2px 16px 10px; overflow-x:auto; }
+    .f-select { --background:rgba(255,255,255,0.05); --border-radius:10px; border:1px solid rgba(255,255,255,0.08); border-radius:10px; --min-height:38px; flex-shrink:0; min-width:140px; }
+    .vigencia-row { display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+    .vig-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; }
+    .vig-vencida { background:rgba(244,63,94,0.15); color:#f87171; }
+    .vig-proxima { background:rgba(245,158,11,0.15); color:#fbbf24; }
+    .vig-vigente { background:rgba(16,185,129,0.15); color:#34d399; }
+    .renov-badge { background:rgba(124,58,237,0.15); color:#a78bfa; }
+    .vig-fecha { font-size:11px; color:rgba(241,245,249,0.4); }
+    .detalle-header { padding:16px 16px 0; }
+    .detalle-email { font-size:15px; font-weight:700; color:#f1f5f9; font-family:monospace; word-break:break-all; }
+    .detalle-sub { display:flex; align-items:center; gap:10px; margin-top:6px; }
+    .tipo-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; background:rgba(16,185,129,0.15); color:#34d399; }
+    .tipo-badge.individual { background:rgba(124,58,237,0.15); color:#a78bfa; }
+    .detalle-stat { font-size:12px; color:rgba(241,245,249,0.4); }
+    .detalle-section-title { font-size:11px; font-weight:700; color:rgba(241,245,249,0.4); text-transform:uppercase; letter-spacing:0.05em; margin:18px 16px 10px; }
+    .cliente-row { display:flex; align-items:center; gap:10px; margin:0 16px 8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:10px 12px; }
+    .cr-avatar { width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,#7c3aed,#a855f7); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; flex-shrink:0; }
+    .cr-info { flex:1; min-width:0; }
+    .cr-nombre { font-size:13px; font-weight:700; color:#f1f5f9; }
+    .cr-perfil { font-size:11px; color:rgba(241,245,249,0.4); margin-top:1px; }
+    .pr-badge { font-size:9px; font-weight:700; padding:2px 7px; border-radius:99px; flex-shrink:0; }
+    .ocupado-badge { background:rgba(124,58,237,0.15); color:#a78bfa; }
+    .libre-badge { background:rgba(16,185,129,0.15); color:#34d399; }
+    .perfil-row { margin:0 16px 8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:10px 12px; }
+    .perfil-row.ocupado { border-color:rgba(124,58,237,0.2); }
+    .pr-num { font-size:12px; font-weight:700; color:#f1f5f9; margin-bottom:4px; }
+    .pr-info { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .pr-cliente { font-size:12px; color:rgba(241,245,249,0.6); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pr-libre { font-size:12px; color:rgba(241,245,249,0.3); }
+    .pr-clave { font-size:11px; font-family:monospace; color:rgba(241,245,249,0.4); background:rgba(0,0,0,0.2); border-radius:6px; padding:3px 8px; margin-top:6px; display:inline-block; }
   `],
 })
 export class InventarioPage implements OnInit {
@@ -278,6 +407,10 @@ export class InventarioPage implements OnInit {
   plataformasSeleccionadas = signal<Set<string>>(new Set());
   claveOriginal = '';
   selectedServicioId = signal<string>('');
+  filtroEstado = signal('');
+  filtroRenovable = signal('');
+  ordenarPor = signal('vencimiento');
+  detalleModal = signal<Cuenta | null>(null);
 
   servicioRequiereClave = computed(() =>
     this.servicios().find(s => s._id === this.selectedServicioId())?.requiereClavePerfil ?? false
@@ -300,8 +433,39 @@ export class InventarioPage implements OnInit {
     let list = this.cuentas();
     const plataformas = this.plataformasSeleccionadas();
     const q = this.busqueda().toLowerCase().trim();
+    const estado = this.filtroEstado();
+    const renovable = this.filtroRenovable();
+
     if (plataformas.size > 0) list = list.filter(c => plataformas.has(c.nombreServicio));
     if (q) list = list.filter(c => c.email.toLowerCase().includes(q));
+    if (estado) {
+      list = list.filter(c => estado === 'sin-fecha'
+        ? !c.fechaVencimientoCuenta
+        : this.estadoVigencia(c.fechaVencimientoCuenta) === estado);
+    }
+    if (renovable === 'si') list = list.filter(c => !!c.renovable);
+    else if (renovable === 'no') list = list.filter(c => !c.renovable);
+
+    const ordenar = this.ordenarPor();
+    if (ordenar === 'vencimiento') {
+      list = [...list].sort((a, b) => {
+        if (!a.fechaVencimientoCuenta && !b.fechaVencimientoCuenta) return 0;
+        if (!a.fechaVencimientoCuenta) return 1;
+        if (!b.fechaVencimientoCuenta) return -1;
+        return new Date(a.fechaVencimientoCuenta).getTime() - new Date(b.fechaVencimientoCuenta).getTime();
+      });
+    } else if (ordenar === 'estado') {
+      const prioridad = (c: Cuenta) => {
+        const est = this.estadoVigencia(c.fechaVencimientoCuenta);
+        if (est === 'vig-vencida') return 0;
+        if (est === 'vig-proxima') return 1;
+        if (est === 'vig-vigente') return 2;
+        return 3;
+      };
+      list = [...list].sort((a, b) => prioridad(a) - prioridad(b));
+    } else if (ordenar === 'plataforma') {
+      list = [...list].sort((a, b) => a.nombreServicio.localeCompare(b.nombreServicio));
+    }
     return list;
   });
 
@@ -332,6 +496,38 @@ export class InventarioPage implements OnInit {
   }
 
   libres(c: Cuenta): number { return c.perfiles?.filter(p => !p.ocupado).length ?? 0; }
+
+  verDetalle(c: Cuenta) { this.detalleModal.set(c); }
+
+  clientesAsignados(c: Cuenta): { nombre: string; perfil: number; pin?: string }[] {
+    return c.perfiles
+      .filter(p => p.ocupado && p.clienteNombre)
+      .map(p => ({ nombre: p.clienteNombre!, perfil: p.numero, pin: p.clavePerfil }));
+  }
+
+  estadoVigencia(fechaVenc?: string): string {
+    if (!fechaVenc) return '';
+    const diff = new Date(fechaVenc).getTime() - Date.now();
+    const dias = diff / (1000 * 60 * 60 * 24);
+    if (dias < 0) return 'vig-vencida';
+    if (dias <= 7) return 'vig-proxima';
+    return 'vig-vigente';
+  }
+
+  labelVigencia(fechaVenc?: string): string {
+    if (!fechaVenc) return '';
+    const diff = new Date(fechaVenc).getTime() - Date.now();
+    const dias = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    if (dias < 0) return 'Vencida';
+    if (dias === 0) return 'Vence hoy';
+    if (dias <= 7) return `Vence en ${dias}d`;
+    return 'Vigente';
+  }
+
+  formatFecha(iso?: string): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
 
   toggleFiltroServicio(nombre: string) {
     const set = new Set(this.plataformasSeleccionadas());

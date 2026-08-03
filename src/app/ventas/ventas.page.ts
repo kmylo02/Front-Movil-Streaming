@@ -1,6 +1,6 @@
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonRefresher, IonRefresherContent, IonSearchbar, IonSegment, IonSegmentButton, IonLabel,
@@ -171,6 +171,7 @@ export class VentasPage implements OnInit {
     private ventasApi: VentasApiService,
     private clientesApi: ClientesApiService,
     private ventaEvents: VentaEventsService,
+    private route: ActivatedRoute,
     public navCtrl: NavController,
     private alertCtrl: AlertController,
     private loadingCtrl: LoadingController,
@@ -186,6 +187,11 @@ export class VentasPage implements OnInit {
     this.clientesApi.getAll().subscribe(cs => {
       this.clientesPorId = new Map(cs.map(c => [c._id, c]));
     });
+  }
+
+  ionViewWillEnter() {
+    const nombre = this.route.snapshot.queryParams['nombre'];
+    if (nombre) this.busqueda.set(nombre);
   }
 
   telefonoDeCliente(clienteId: string): string | undefined {

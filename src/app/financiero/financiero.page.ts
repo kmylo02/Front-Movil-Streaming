@@ -56,7 +56,7 @@ import { ReportsApiService, FinancieroMes } from '../core/services/api.service';
           </div>
           <div class="total-card">
             <div class="total-val" [style.color]="totalNeto() >= 0 ? '#a78bfa' : '#f43f5e'">{{ fmt(totalNeto()) }}</div>
-            <div class="total-lbl">Neto {{ anio }}</div>
+            <div class="total-lbl">Neto {{ anio }} · margen {{ margenTotal() }}%</div>
           </div>
         </div>
 
@@ -94,14 +94,18 @@ import { ReportsApiService, FinancieroMes } from '../core/services/api.service';
                 <div class="fin-td r">Ingresos</div>
                 <div class="fin-td r">Gastos</div>
                 <div class="fin-td r">Neto</div>
+                <div class="fin-td r">Margen</div>
               </div>
               @for (m of data(); track m.mes) {
                 <div class="fin-tr">
                   <div class="fin-td">{{ m.mes }}</div>
                   <div class="fin-td r" style="color:#10b981">{{ fmt(m.ingresos) }}</div>
                   <div class="fin-td r" style="color:#f43f5e">{{ fmt(m.gastos) }}</div>
-                  <div class="fin-td r" [style.color]="(m.ingresos - m.gastos) >= 0 ? '#a78bfa' : '#f43f5e'">
-                    {{ fmt(m.ingresos - m.gastos) }}
+                  <div class="fin-td r" [style.color]="m.ganancia >= 0 ? '#a78bfa' : '#f43f5e'">
+                    {{ fmt(m.ganancia) }}
+                  </div>
+                  <div class="fin-td r" [style.color]="m.ganancia >= 0 ? '#a78bfa' : '#f43f5e'">
+                    @if (m.ingresos > 0) { {{ margen(m) }}% } @else { — }
                   </div>
                 </div>
               }
@@ -143,12 +147,12 @@ export class FinancieroPage implements OnInit {
   loading = signal(true);
   data = signal<FinancieroMes[]>([]);
   anio = new Date().getFullYear();
-  years = [2024, 2025, 2026];
+  years = [new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2];
   private MAX_H = 64;
 
   totalIngresos = computed(() => this.data().reduce((s, m) => s + m.ingresos, 0));
   totalGastos = computed(() => this.data().reduce((s, m) => s + m.gastos, 0));
-  totalNeto = computed(() => this.totalIngresos() - this.totalGastos());
+  totalNeto = computed(() => this.data().reduce((s, m) => s + m.ganancia, 0));
 
   constructor(private reportsApi: ReportsApiService, public navCtrl: NavController) {
     addIcons({ chevronBackOutline, chevronDownOutline });
@@ -172,5 +176,16 @@ export class FinancieroPage implements OnInit {
     if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
     if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}k`;
     return `$${val}`;
+  }
+
+  margen(m: FinancieroMes): number {
+    if (!m.ingresos) return 0;
+    return Math.round((m.ganancia / m.ingresos) * 100);
+  }
+
+  margenTotal(): number {
+    const ing = this.totalIngresos();
+    if (!ing) return 0;
+    return Math.round((this.totalNeto() / ing) * 100);
   }
 }

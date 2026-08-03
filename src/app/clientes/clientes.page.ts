@@ -5,7 +5,7 @@ import { RouterModule } from '@angular/router';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonRefresher, IonRefresherContent, IonSearchbar, IonList, IonItem, IonLabel,
-  IonModal, IonInput, IonSpinner, IonBadge, NavController,
+  IonModal, IonInput, IonSpinner, IonBadge, IonActionSheet, NavController,
   AlertController, LoadingController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -22,7 +22,7 @@ import { ClientesApiService, Cliente } from '../core/services/api.service';
     CommonModule, FormsModule, RouterModule, DatePipe,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonRefresher, IonRefresherContent, IonSearchbar, IonList, IonItem, IonLabel,
-    IonModal, IonInput, IonSpinner, IonBadge,
+    IonModal, IonInput, IonSpinner, IonBadge, IonActionSheet,
   ],
   template: `
     <ion-header>
@@ -63,6 +63,16 @@ import { ClientesApiService, Cliente } from '../core/services/api.service';
         </ion-list>
       }
     </ion-content>
+
+    <!-- Action Sheet -->
+    @if (seleccionado()) {
+      <ion-action-sheet
+        [isOpen]="showActions()"
+        [header]="seleccionado()!.nombre"
+        [buttons]="actionButtons()"
+        (didDismiss)="showActions.set(false)">
+      </ion-action-sheet>
+    }
 
     <!-- Create / Edit Modal -->
     <ion-modal [isOpen]="showModal()" (didDismiss)="showModal.set(false)">
@@ -127,11 +137,31 @@ export class ClientesPage implements OnInit {
   editando = signal<Cliente | null>(null);
   saving = signal(false);
   error = signal('');
+  seleccionado = signal<Cliente | null>(null);
+  showActions = signal(false);
 
   form: Partial<Cliente> = {};
 
+  actionButtons = () => {
+    const c = this.seleccionado();
+    if (!c) return [];
+    const btns: any[] = [
+      { text: 'Editar', icon: 'pencil-outline', handler: () => this.openModal(c) },
+      { text: 'Ver ventas', icon: 'film-outline', handler: () =>
+        this.navCtrl.navigateForward('/tabs/ventas', { queryParams: { clienteId: c._id, nombre: c.nombre } }) },
+      { text: 'Nueva venta', icon: 'add-outline', handler: () =>
+        this.navCtrl.navigateForward('/tabs/ventas/nueva', { queryParams: { clienteId: c._id, nombre: c.nombre } }) },
+    ];
+    if (c.whatsapp) {
+      btns.push({ text: 'Abrir WhatsApp', icon: 'logo-whatsapp', handler: () => this.abrirWhatsapp(c) });
+    }
+    btns.push({ text: 'Cerrar', role: 'cancel' });
+    return btns;
+  };
+
   constructor(
     private clientesApi: ClientesApiService,
+    public navCtrl: NavController,
     private alertCtrl: AlertController,
     private loadingCtrl: LoadingController,
     private toastCtrl: ToastController,
@@ -158,7 +188,15 @@ export class ClientesPage implements OnInit {
     this.showModal.set(true);
   }
 
-  openActions(c: Cliente) { this.openModal(c); }
+  openActions(c: Cliente) {
+    this.seleccionado.set(c);
+    this.showActions.set(true);
+  }
+
+  abrirWhatsapp(c: Cliente) {
+    const num = (c.whatsapp || '').replace(/\D/g, '');
+    if (num) window.open(`https://wa.me/${num}`, '_blank');
+  }
 
   async guardar() {
     if (!this.form.nombre || !this.form.telefono) {
