@@ -50,11 +50,13 @@ import { AuthService } from '../core/services/auth.service';
           <ion-label>Plataformas</ion-label>
           <ion-note slot="end">Catálogo de servicios</ion-note>
         </ion-item>
-        <ion-item routerLink="/tabs/usuarios" detail="true" button>
-          <ion-icon name="people-circle-outline" slot="start" class="ic-e"></ion-icon>
-          <ion-label>Usuarios</ion-label>
-          <ion-note slot="end">Gestión de acceso</ion-note>
-        </ion-item>
+        @if (auth.usuario()?.rol === 'admin') {
+          <ion-item routerLink="/tabs/usuarios" detail="true" button>
+            <ion-icon name="people-circle-outline" slot="start" class="ic-e"></ion-icon>
+            <ion-label>Usuarios</ion-label>
+            <ion-note slot="end">Gestión de acceso</ion-note>
+          </ion-item>
+        }
         <ion-item routerLink="/tabs/perfil" detail="true" button>
           <ion-icon name="person-circle-outline" slot="start" class="ic-v"></ion-icon>
           <ion-label>Mi Perfil</ion-label>

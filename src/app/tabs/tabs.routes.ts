@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { TabsPage } from './tabs.page';
+import { adminGuard } from '../core/guards/admin.guard';
 
 export const routes: Routes = [
   {
@@ -16,7 +17,7 @@ export const routes: Routes = [
       { path: 'financiero', loadComponent: () => import('../financiero/financiero.page').then((m) => m.FinancieroPage) },
       { path: 'servicios', loadComponent: () => import('../servicios/servicios.page').then((m) => m.ServiciosPage) },
       { path: 'plataformas-report', loadComponent: () => import('../plataformas-report/plataformas-report.page').then((m) => m.PlataformasReportPage) },
-      { path: 'usuarios', loadComponent: () => import('../usuarios/usuarios.page').then((m) => m.UsuariosPage) },
+      { path: 'usuarios', canActivate: [adminGuard], loadComponent: () => import('../usuarios/usuarios.page').then((m) => m.UsuariosPage) },
       { path: 'perfil', loadComponent: () => import('../perfil/perfil.page').then((m) => m.PerfilPage) },
       { path: '', redirectTo: '/tabs/dashboard', pathMatch: 'full' },
     ],
