@@ -5,11 +5,13 @@ import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonRefresher, IonRefresherContent, IonItem, IonLabel,
   IonModal, IonInput, IonSelect, IonSelectOption, IonToggle, IonBadge,
-  IonSpinner, IonSearchbar, AlertController, LoadingController, ToastController,
+  IonSpinner, IonSearchbar, IonTextarea, AlertController, LoadingController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { addOutline, closeOutline, checkmarkOutline, pencilOutline, trashOutline, eyeOutline, copyOutline } from 'ionicons/icons';
 import { InventarioApiService, ServiciosApiService, Cuenta, Servicio } from '../core/services/api.service';
+import { AuthService } from '../core/services/auth.service';
+import { formatoPesos, parsePesos } from '../core/utils/moneda.util';
 import { Clipboard } from '@capacitor/clipboard';
 
 @Component({
@@ -20,7 +22,7 @@ import { Clipboard } from '@capacitor/clipboard';
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonRefresher, IonRefresherContent, IonItem, IonLabel,
     IonModal, IonInput, IonSelect, IonSelectOption, IonToggle, IonBadge,
-    IonSpinner, IonSearchbar,
+    IonSpinner, IonSearchbar, IonTextarea,
   ],
   template: `
     <ion-header>
@@ -200,17 +202,19 @@ import { Clipboard } from '@capacitor/clipboard';
                 </div>
               </div>
             }
-            <ion-item class="f-item" lines="none">
-              <ion-label position="stacked">Valor cuenta ($)</ion-label>
-              <ion-input [(ngModel)]="form.valorCuenta" type="number" placeholder="0"></ion-input>
-            </ion-item>
-            <ion-item class="f-item" lines="none">
-              <ion-label position="stacked">Valor pantalla ($)</ion-label>
-              <ion-input [(ngModel)]="form.valorPantalla" type="number" placeholder="0"></ion-input>
-            </ion-item>
+
+            <div class="section-label">Vigencia de la cuenta</div>
+            <div class="dur-grid">
+              @for (d of DURACIONES_CUENTA; track d.meses) {
+                <button type="button" class="dur-btn" [class.active]="duracionCuenta === d.meses"
+                        (click)="onDuracionCuentaChange(d.meses)">
+                  {{ d.label }}
+                </button>
+              }
+            </div>
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">Fecha inicio</ion-label>
-              <ion-input [(ngModel)]="form.fechaInicioCuenta" type="date"></ion-input>
+              <ion-input [(ngModel)]="form.fechaInicioCuenta" type="date" (ionChange)="onFechaInicioCuentaChange()"></ion-input>
             </ion-item>
             <ion-item class="f-item" lines="none">
               <ion-label position="stacked">Fecha vencimiento</ion-label>
@@ -219,6 +223,27 @@ import { Clipboard } from '@capacitor/clipboard';
             <ion-item class="f-item" lines="none">
               <ion-label>Renovable</ion-label>
               <ion-toggle [(ngModel)]="form.renovable" slot="end"></ion-toggle>
+            </ion-item>
+
+            <div class="section-label">Costo</div>
+            @if (form.tipo === 'compartida') {
+              <ion-item class="f-item" lines="none">
+                <ion-label position="stacked">Costo de la cuenta ($)</ion-label>
+                <ion-input [ngModel]="formatoPesos(form.valorCuenta)"
+                           (ngModelChange)="form.valorCuenta = parsePesos($event)"
+                           type="text" inputmode="numeric" placeholder="0"></ion-input>
+              </ion-item>
+            } @else {
+              <ion-item class="f-item" lines="none">
+                <ion-label position="stacked">Costo de pantalla ($)</ion-label>
+                <ion-input [ngModel]="formatoPesos(form.valorPantalla)"
+                           (ngModelChange)="form.valorPantalla = parsePesos($event)"
+                           type="text" inputmode="numeric" placeholder="0"></ion-input>
+              </ion-item>
+            }
+            <ion-item class="f-item" lines="none">
+              <ion-label position="stacked">Notas</ion-label>
+              <ion-textarea [(ngModel)]="form.notas" placeholder="Proveedor, condiciones de renovación, observaciones..." rows="2"></ion-textarea>
             </ion-item>
           </div>
         </ion-content>
@@ -279,7 +304,13 @@ import { Clipboard } from '@capacitor/clipboard';
                   {{ d.tipo === 'individual' ? 'Individual' : 'Compartida' }}
                 </span>
                 <span class="detalle-stat">{{ libres(d) }}/{{ d.totalPerfiles }} disponibles</span>
+                @if (d.operadorNombre) {
+                  <span class="detalle-stat">· Agregada por {{ d.operadorNombre }}</span>
+                }
               </div>
+              @if (d.notas) {
+                <div class="detalle-notas">📝 {{ d.notas }}</div>
+              }
             </div>
             @if (clientesAsignados(d).length > 0) {
               <div class="detalle-section-title">👥 Clientes asignados</div>
@@ -349,6 +380,11 @@ import { Clipboard } from '@capacitor/clipboard';
     .claves-perfil-title { font-size: 12px; font-weight: 600; color: rgba(241,245,249,0.5); margin-bottom: 8px; }
     .claves-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
     .claves-item { margin: 0; }
+    .section-label { font-size: 11px; font-weight: 700; color: rgba(241,245,249,0.35); text-transform: uppercase; letter-spacing: 0.06em; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07); margin-top: 6px; }
+    .dur-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .dur-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 8px 4px; font-size: 12px; font-weight: 600; color: rgba(241,245,249,0.6); font-family: inherit; }
+    .dur-btn.active { background: rgba(124,58,237,0.25); border-color: #7c3aed; color: #c4b5fd; }
+    .detalle-notas { font-size: 12px; color: rgba(241,245,249,0.5); background: rgba(255,255,255,0.03); border-radius: 8px; padding: 8px 12px; margin: 10px 16px 0; line-height: 1.5; }
     .afect-intro { text-align:center; padding:24px 20px 12px; }
     .afect-icon { font-size:36px; margin-bottom:8px; }
     .afect-title { font-size:17px; font-weight:700; color:#f1f5f9; margin-bottom:4px; }
@@ -419,6 +455,17 @@ export class InventarioPage implements OnInit {
   showAfectados = signal(false);
   clientesAfectados = signal<any[]>([]);
 
+  formatoPesos = formatoPesos;
+  parsePesos = parsePesos;
+
+  duracionCuenta = 1;
+  DURACIONES_CUENTA = [
+    { meses: 1, label: 'Mensual' },
+    { meses: 3, label: 'Trimestral' },
+    { meses: 6, label: 'Semestral' },
+    { meses: 12, label: 'Anual' },
+  ];
+
   resumenEntries = computed(() => {
     const r = this.resumen();
     if (!r) return [];
@@ -475,6 +522,7 @@ export class InventarioPage implements OnInit {
     private alertCtrl: AlertController,
     private loadingCtrl: LoadingController,
     private toastCtrl: ToastController,
+    private auth: AuthService,
   ) {
     addIcons({ addOutline, closeOutline, checkmarkOutline, pencilOutline, trashOutline, eyeOutline, copyOutline });
   }
@@ -538,10 +586,42 @@ export class InventarioPage implements OnInit {
   openModal(c?: Cuenta) {
     this.editando.set(c || null);
     this.claveOriginal = c?.clave || '';
-    this.form = c ? { ...c } : { tipo: 'compartida', totalPerfiles: 4 };
+    this.form = c ? { ...c, fechaInicioCuenta: this.toDateInput(c.fechaInicioCuenta), fechaVencimientoCuenta: this.toDateInput(c.fechaVencimientoCuenta) } : { tipo: 'compartida', totalPerfiles: 4 };
     this.selectedServicioId.set(c?.servicioId || '');
     this.clavesPerfil = c ? c.perfiles.map(p => p.clavePerfil || '') : [];
+    this.duracionCuenta = c ? this.estimarDuracionCuenta(this.form.fechaInicioCuenta, this.form.fechaVencimientoCuenta) : 1;
     this.showModal.set(true);
+  }
+
+  private toDateInput(iso?: string): string {
+    if (!iso) return '';
+    return new Date(iso).toISOString().split('T')[0];
+  }
+
+  estimarDuracionCuenta(inicio?: string, fin?: string): number {
+    if (!inicio || !fin) return 1;
+    const a = new Date(inicio + 'T12:00:00');
+    const b = new Date(fin + 'T12:00:00');
+    const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+    const opciones = [1, 3, 6, 12];
+    return opciones.reduce((prev, cur) => Math.abs(cur - meses) < Math.abs(prev - meses) ? cur : prev, 1);
+  }
+
+  onDuracionCuentaChange(meses: number) {
+    this.duracionCuenta = meses;
+    if (this.form.fechaInicioCuenta) {
+      const d = new Date(this.form.fechaInicioCuenta + 'T12:00:00');
+      d.setMonth(d.getMonth() + meses);
+      this.form.fechaVencimientoCuenta = d.toISOString().split('T')[0];
+    }
+  }
+
+  onFechaInicioCuentaChange() {
+    if (this.form.fechaInicioCuenta && this.duracionCuenta) {
+      const d = new Date(this.form.fechaInicioCuenta + 'T12:00:00');
+      d.setMonth(d.getMonth() + this.duracionCuenta);
+      this.form.fechaVencimientoCuenta = d.toISOString().split('T')[0];
+    }
   }
 
   onServicioChange() {
@@ -608,7 +688,7 @@ export class InventarioPage implements OnInit {
     const claveNueva = this.form.clave;
     const claveCambio = !!this.editando() && !!claveNueva && claveNueva !== this.claveOriginal;
     const cuentaId = this.editando()?._id;
-    const dto = {
+    const dto: any = {
       ...this.form,
       totalPerfiles: Number(this.form.totalPerfiles) || 0,
       perfilNumero: this.form.tipo === 'individual' ? Number(this.form.perfilNumero) : undefined,
@@ -616,6 +696,10 @@ export class InventarioPage implements OnInit {
       valorPantalla: this.form.valorPantalla != null && (this.form.valorPantalla as any) !== '' ? Number(this.form.valorPantalla) : undefined,
       clavesPerfil: this.clavesPerfil.filter(Boolean),
     };
+    if (!cuentaId) {
+      dto.operadorId = this.auth.usuario()?.id;
+      dto.operadorNombre = this.auth.usuario()?.nombre;
+    }
     try {
       const op = cuentaId ? this.inventarioApi.update(cuentaId, dto) : this.inventarioApi.create(dto);
       await new Promise<void>((res, rej) => op.subscribe({ next: () => res(), error: rej }));

@@ -14,6 +14,7 @@ import {
   Cliente, Servicio,
 } from '../core/services/api.service';
 import { VentaEventsService } from '../core/services/venta-events.service';
+import { formatoPesos, parsePesos } from '../core/utils/moneda.util';
 
 interface CuentaDisponible {
   cuentaId: string;
@@ -171,7 +172,8 @@ interface ServicioForm {
         <div class="step-card">
           <div class="step-header"><span class="step-num">4</span><span class="step-title">Monto</span></div>
           <ion-item class="f-item" lines="none">
-            <ion-input [(ngModel)]="monto" placeholder="Monto en pesos" type="number" min="0"></ion-input>
+            <ion-input [ngModel]="formatoPesos(monto)" (ngModelChange)="monto = parsePesos($event)"
+                       placeholder="Monto en pesos" type="text" inputmode="numeric"></ion-input>
           </ion-item>
           <ion-item class="f-item" lines="none">
             <ion-input [(ngModel)]="notas" placeholder="Notas (opcional)"></ion-input>
@@ -227,6 +229,8 @@ export class NuevaVentaPage implements OnInit {
   monto: number | null = null;
   notas = '';
   saving = signal(false);
+  formatoPesos = formatoPesos;
+  parsePesos = parsePesos;
 
   duraciones = [
     { meses: 1, label: '1 mes' },
