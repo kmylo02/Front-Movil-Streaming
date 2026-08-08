@@ -45,9 +45,17 @@ const ICONOS = ['📺','🎬','🎵','🎮','⚡','🏆','🌐','📡','🔴','�
       } @else {
         <div class="svcs-grid">
           @for (s of servicios(); track s._id) {
-            <div class="svc-card" [style.--svc-c]="s.color" (click)="openModal(s)">
+            <div class="svc-card" [class.svc-inactiva]="!s.activo"
+                 [style.--svc-c]="s.color" [style.--svc-glow]="s.color + '40'"
+                 (click)="openModal(s)">
               <div class="svc-top">
-                <div class="svc-icon-wrap">{{ s.icono }}</div>
+                <div class="icono-stage">
+                  <div class="icono-badge" [style.background]="'linear-gradient(150deg,' + s.color + 'f2,' + s.color + '99)'">
+                    <span class="icono-glass"></span>
+                    <span class="icono-text">{{ s.icono }}</span>
+                  </div>
+                  <div class="icono-shadow" [style.background]="s.color"></div>
+                </div>
                 <ion-badge [color]="s.activo ? 'success' : 'medium'" class="svc-badge">
                   {{ s.activo ? 'Activo' : 'Inactivo' }}
                 </ion-badge>
@@ -87,8 +95,13 @@ const ICONOS = ['📺','🎬','🎵','🎮','⚡','🏆','🌐','📡','🔴','�
         <ion-content>
           <div class="modal-form">
             <!-- Preview -->
-            <div class="preview-card" [style.border-color]="form.color">
-              <div class="preview-icon">{{ form.icono }}</div>
+            <div class="preview-card" [style.--svc-c]="form.color" [style.--svc-glow]="(form.color || '#7c3aed') + '40'">
+              <div class="icono-stage preview-stage">
+                <div class="icono-badge" [style.background]="'linear-gradient(150deg,' + (form.color || '#7c3aed') + 'f2,' + (form.color || '#7c3aed') + '99)'">
+                  <span class="icono-glass"></span>
+                  <span class="icono-text">{{ form.icono }}</span>
+                </div>
+              </div>
               <div class="preview-name">{{ form.nombre || 'Nombre plataforma' }}</div>
             </div>
 
@@ -133,27 +146,75 @@ const ICONOS = ['📺','🎬','🎵','🎮','⚡','🏆','🌐','📡','🔴','�
   `,
   styles: [`
     .loading-c { display:flex; justify-content:center; padding:60px 0; }
-    .svcs-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:14px 16px 80px; }
+    .svcs-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:14px 16px 80px; }
     .svc-card {
-      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07);
-      border-radius:14px; padding:14px; position:relative;
-      border-left:3px solid var(--svc-c, #7c3aed);
+      position: relative;
+      border-radius: 18px;
+      background:
+        radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--svc-c, #7c3aed) 10%, transparent), transparent 60%),
+        linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 16px;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.06) inset,
+        0 14px 26px -16px rgba(0,0,0,0.7),
+        0 2px 8px -2px rgba(0,0,0,0.4);
+      transition: transform 0.15s ease-out, box-shadow 0.2s ease;
     }
-    .svc-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-    .svc-icon-wrap { font-size:20px; }
+    .svc-card:active {
+      transform: scale(0.97) translateY(1px);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.06) inset,
+        0 6px 14px -10px rgba(0,0,0,0.7),
+        0 0 0 1px color-mix(in srgb, var(--svc-c, #7c3aed) 35%, transparent),
+        0 10px 22px -12px var(--svc-glow, transparent);
+    }
+    .svc-inactiva { opacity: 0.45; filter: saturate(0.6); }
+    .svc-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px; }
     .svc-badge { font-size:10px; }
     .svc-name { font-size:14px; font-weight:700; color:#f1f5f9; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .svc-flags { display:flex; flex-wrap:wrap; gap:4px; }
     .svc-flag { font-size:9px; padding:2px 6px; border-radius:4px; background:rgba(124,58,237,0.12); color:#a78bfa; border:1px solid rgba(124,58,237,0.2); }
     .del-btn {
-      position:absolute; top:10px; right:10px; width:22px; height:22px; border-radius:50%;
+      position:absolute; top:12px; right:12px; width:22px; height:22px; border-radius:50%;
       background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); padding:0;
       color:rgba(241,245,249,0.4); display:flex; align-items:center; justify-content:center; font-size:12px;
     }
     .del-btn-on { background:rgba(16,185,129,0.15); border-color:rgba(16,185,129,0.4); color:#10b981; }
+
+    /* Icono flotante estilo "app icon" con relieve */
+    .icono-stage { position: relative; }
+    .icono-badge {
+      width: 44px; height: 44px; border-radius: 13px; position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow:
+        inset 0 1px 1px rgba(255,255,255,0.55),
+        inset 0 -8px 12px rgba(0,0,0,0.28),
+        0 6px 14px -4px rgba(0,0,0,0.5);
+    }
+    .icono-glass {
+      position: absolute; top: 0; left: 0; right: 0; height: 55%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+      border-radius: 13px 13px 60% 60% / 13px 13px 26px 26px;
+    }
+    .icono-text { position: relative; font-size: 18px; }
+    .icono-shadow {
+      position: absolute; left: 6px; right: 6px; bottom: -10px; height: 10px; border-radius: 50%;
+      filter: blur(8px); opacity: 0.4;
+    }
+
     .modal-form { padding:16px; display:flex; flex-direction:column; gap:8px; }
-    .preview-card { border:2px solid; border-radius:14px; padding:16px; text-align:center; margin-bottom:6px; }
-    .preview-icon { font-size:32px; margin-bottom:6px; }
+    .preview-card {
+      border-radius: 18px; padding: 20px; text-align: center; margin-bottom: 6px;
+      background:
+        radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--svc-c, #7c3aed) 14%, transparent), transparent 65%),
+        linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+      border: 1px solid color-mix(in srgb, var(--svc-c, #7c3aed) 40%, rgba(255,255,255,0.1));
+      box-shadow: 0 16px 30px -18px var(--svc-glow, transparent), 0 1px 0 rgba(255,255,255,0.06) inset;
+    }
+    .preview-stage { display: flex; justify-content: center; margin-bottom: 10px; }
+    .preview-stage .icono-badge { width: 56px; height: 56px; border-radius: 16px; }
+    .preview-stage .icono-text { font-size: 24px; }
     .preview-name { font-size:16px; font-weight:700; color:#f1f5f9; }
     .picker-label { font-size:11px; font-weight:700; color:rgba(241,245,249,0.4); text-transform:uppercase; letter-spacing:0.05em; padding:4px 0 6px; }
     .color-picker { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }

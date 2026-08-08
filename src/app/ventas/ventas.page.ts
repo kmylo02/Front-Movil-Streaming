@@ -226,14 +226,20 @@ export class VentasPage implements OnInit {
           handler: async (data) => {
             const loading = await this.loadingCtrl.create({ message: 'Renovando…' });
             await loading.present();
+            let ventaRenovada: Venta | undefined;
             try {
-              await new Promise<void>((res, rej) => this.ventasApi.renovar(v._id, +data.meses, +data.monto).subscribe({ next: () => res(), error: rej }));
+              ventaRenovada = await new Promise<Venta>((res, rej) => this.ventasApi.renovar(v._id, +data.meses, +data.monto).subscribe({ next: res, error: rej }));
               this.ventaEvents.notificar();
               await this.load();
-              this.toast('Venta renovada');
             } catch (e: any) {
               this.toast(e?.error?.message || 'Error al renovar', 'danger');
             } finally { loading.dismiss(); }
+
+            if (ventaRenovada?.mensajeGenerado) {
+              await this.mostrarMensajeRenovacion(ventaRenovada.mensajeGenerado);
+            } else if (ventaRenovada) {
+              this.toast('Venta renovada');
+            }
           },
         },
       ],
@@ -298,6 +304,26 @@ export class VentasPage implements OnInit {
       await Clipboard.write({ string: v.mensajeGenerado });
       this.toast('Mensaje copiado');
     } catch { this.toast('No se pudo copiar'); }
+  }
+
+  async mostrarMensajeRenovacion(mensaje: string) {
+    const alert = await this.alertCtrl.create({
+      header: '✅ Venta renovada',
+      subHeader: 'Mensaje para el cliente',
+      message: mensaje.replace(/\n/g, '<br>'),
+      buttons: [
+        { text: 'Cerrar', role: 'cancel' },
+        {
+          text: '📋 Copiar mensaje',
+          handler: async () => {
+            const { Clipboard } = await import('@capacitor/clipboard');
+            await Clipboard.write({ string: mensaje });
+            this.toast('Mensaje copiado');
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 
   badgeColor(estado: string) {
