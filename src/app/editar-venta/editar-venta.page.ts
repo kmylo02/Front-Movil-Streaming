@@ -392,13 +392,13 @@ export class EditarVentaPage implements OnInit {
   async guardar() {
     const sinCuenta = this.serviciosForm().find(sf => !sf.cuentaId);
     if (sinCuenta) {
-      const t = await this.toastCtrl.create({ message: `Selecciona una cuenta para ${sinCuenta.nombreServicio}`, duration: 2500, color: 'warning' });
+      const t = await this.toastCtrl.create({ message: `Selecciona una cuenta para ${sinCuenta.nombreServicio} antes de guardar`, duration: 2500, color: 'warning' });
       return t.present();
     }
     const sinPerfil = this.serviciosForm().find(sf =>
       !sf.numeroPerfil && this.getServicio(sf.nombreServicio)?.requiereNumeroPerfil !== false);
     if (sinPerfil) {
-      const t = await this.toastCtrl.create({ message: `Selecciona un perfil para ${sinPerfil.nombreServicio}`, duration: 2500, color: 'warning' });
+      const t = await this.toastCtrl.create({ message: `Selecciona un perfil para ${sinPerfil.nombreServicio} antes de guardar`, duration: 2500, color: 'warning' });
       return t.present();
     }
 
@@ -428,12 +428,12 @@ export class EditarVentaPage implements OnInit {
 
       if (ventaActualizada?.mensajeGenerado) {
         const alert = await this.alertCtrl.create({
-          header: 'Venta actualizada',
-          message: 'El mensaje fue regenerado. ¿Copiarlo ahora?',
+          header: '✅ Venta actualizada',
+          message: 'El mensaje para el cliente se regeneró con los datos nuevos. ¿Quieres copiarlo ahora?',
           buttons: [
             { text: 'Cerrar', role: 'cancel', handler: () => this.navCtrl.back() },
             {
-              text: 'Copiar mensaje',
+              text: '📋 Copiar mensaje',
               handler: async () => {
                 try {
                   const { Clipboard } = await import('@capacitor/clipboard');
@@ -446,12 +446,12 @@ export class EditarVentaPage implements OnInit {
         });
         await alert.present();
       } else {
-        const t = await this.toastCtrl.create({ message: 'Venta actualizada', duration: 2000, color: 'success' });
+        const t = await this.toastCtrl.create({ message: 'Venta actualizada ✅', duration: 2000, color: 'success' });
         await t.present();
         this.navCtrl.back();
       }
     } catch (e: any) {
-      const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al guardar', duration: 3000, color: 'danger' });
+      const t = await this.toastCtrl.create({ message: e?.error?.message || 'No pudimos guardar los cambios. Inténtalo de nuevo.', duration: 3000, color: 'danger' });
       await t.present();
     } finally {
       loading.dismiss();

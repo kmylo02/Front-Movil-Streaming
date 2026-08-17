@@ -214,7 +214,8 @@ export class VentasPage implements OnInit {
 
   async renovar(v: Venta) {
     const alert = await this.alertCtrl.create({
-      header: 'Renovar venta',
+      header: 'Renovar suscripción',
+      subHeader: `Extiende la venta de ${v.nombreCliente}`,
       inputs: [
         { name: 'meses', type: 'number', placeholder: 'Meses (ej: 1)', min: 1, max: 12 },
         { name: 'monto', type: 'number', placeholder: 'Monto', min: 0 },
@@ -232,13 +233,13 @@ export class VentasPage implements OnInit {
               this.ventaEvents.notificar();
               await this.load();
             } catch (e: any) {
-              this.toast(e?.error?.message || 'Error al renovar', 'danger');
+              this.toast(e?.error?.message || 'No pudimos renovar la venta. Inténtalo de nuevo.', 'danger');
             } finally { loading.dismiss(); }
 
             if (ventaRenovada?.mensajeGenerado) {
               await this.mostrarMensajeRenovacion(ventaRenovada.mensajeGenerado);
             } else if (ventaRenovada) {
-              this.toast('Venta renovada');
+              this.toast('Venta renovada ✅');
             }
           },
         },
@@ -253,9 +254,9 @@ export class VentasPage implements OnInit {
     try {
       await new Promise<void>((res, rej) => this.ventasApi.pausar(v._id).subscribe({ next: () => res(), error: rej }));
       await this.load();
-      this.toast('Venta pausada');
+      this.toast('Venta pausada — puedes reactivarla cuando quieras');
     } catch (e: any) {
-      this.toast(e?.error?.message || 'Error al pausar', 'danger');
+      this.toast(e?.error?.message || 'No pudimos pausar la venta. Inténtalo de nuevo.', 'danger');
     } finally { loading.dismiss(); }
   }
 
@@ -265,20 +266,20 @@ export class VentasPage implements OnInit {
     try {
       await new Promise<void>((res, rej) => this.ventasApi.update(v._id, { estado: 'activa' }).subscribe({ next: () => res(), error: rej }));
       await this.load();
-      this.toast('Venta reactivada');
+      this.toast('Venta reactivada ✅');
     } catch (e: any) {
-      this.toast(e?.error?.message || 'Error al reactivar', 'danger');
+      this.toast(e?.error?.message || 'No pudimos reactivar la venta. Inténtalo de nuevo.', 'danger');
     } finally { loading.dismiss(); }
   }
 
   async cancelar(v: Venta) {
     const confirm = await this.alertCtrl.create({
-      header: 'Cancelar venta',
-      message: `¿Cancelar la venta de ${v.nombreCliente}?`,
+      header: 'Cancelar esta venta',
+      message: `Se marcará como vencida la venta de ${v.nombreCliente}. Esta acción no se puede deshacer.`,
       buttons: [
-        { text: 'No', role: 'cancel' },
+        { text: 'No, mantenerla', role: 'cancel' },
         {
-          text: 'Cancelar venta',
+          text: 'Sí, cancelar',
           role: 'destructive',
           handler: async () => {
             const loading = await this.loadingCtrl.create({ message: 'Cancelando…' });
@@ -289,7 +290,7 @@ export class VentasPage implements OnInit {
               this.ventaEvents.notificar();
               this.toast('Venta cancelada');
             } catch (e: any) {
-              this.toast(e?.error?.message || 'Error al cancelar', 'danger');
+              this.toast(e?.error?.message || 'No pudimos cancelar la venta. Inténtalo de nuevo.', 'danger');
             } finally { loading.dismiss(); }
           },
         },
@@ -302,8 +303,8 @@ export class VentasPage implements OnInit {
     try {
       const { Clipboard } = await import('@capacitor/clipboard');
       await Clipboard.write({ string: v.mensajeGenerado });
-      this.toast('Mensaje copiado');
-    } catch { this.toast('No se pudo copiar'); }
+      this.toast('Mensaje copiado al portapapeles 📋');
+    } catch { this.toast('No pudimos copiar el mensaje'); }
   }
 
   async mostrarMensajeRenovacion(mensaje: string) {
@@ -318,7 +319,7 @@ export class VentasPage implements OnInit {
           handler: async () => {
             const { Clipboard } = await import('@capacitor/clipboard');
             await Clipboard.write({ string: mensaje });
-            this.toast('Mensaje copiado');
+            this.toast('Mensaje copiado al portapapeles 📋');
           },
         },
       ],

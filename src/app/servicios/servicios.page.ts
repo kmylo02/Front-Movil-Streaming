@@ -271,10 +271,10 @@ export class ServiciosPage implements OnInit {
       }
       this.showModal.set(false);
       await this.load();
-      const t = await this.toastCtrl.create({ message: 'Guardado', duration: 2000, color: 'success' });
+      const t = await this.toastCtrl.create({ message: this.editando() ? 'Plataforma actualizada ✅' : 'Plataforma agregada ✅', duration: 2000, color: 'success' });
       t.present();
     } catch (e: any) {
-      const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al guardar', duration: 3000, color: 'danger' });
+      const t = await this.toastCtrl.create({ message: e?.error?.message || 'No pudimos guardar la plataforma. Inténtalo de nuevo.', duration: 3000, color: 'danger' });
       t.present();
     } finally { this.saving.set(false); }
   }
@@ -284,7 +284,7 @@ export class ServiciosPage implements OnInit {
       await new Promise<void>((res, rej) => this.serviciosApi.update(s._id, { activo: !s.activo }).subscribe({ next: () => res(), error: rej }));
       await this.load();
     } catch (e: any) {
-      const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al cambiar estado', duration: 3000, color: 'danger' });
+      const t = await this.toastCtrl.create({ message: e?.error?.message || 'No pudimos cambiar el estado de la plataforma', duration: 3000, color: 'danger' });
       t.present();
     }
   }

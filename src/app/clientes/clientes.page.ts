@@ -213,10 +213,10 @@ export class ClientesPage implements OnInit {
       }
       this.showModal.set(false);
       await this.load();
-      const t = await this.toastCtrl.create({ message: 'Guardado', duration: 2000, color: 'success' });
+      const t = await this.toastCtrl.create({ message: this.editando() ? 'Cliente actualizado ✅' : 'Cliente agregado ✅', duration: 2000, color: 'success' });
       t.present();
     } catch (e: any) {
-      this.error.set(e?.error?.message || 'Error al guardar');
+      this.error.set(e?.error?.message || 'No pudimos guardar el cliente. Inténtalo de nuevo.');
     } finally { this.saving.set(false); }
   }
 }

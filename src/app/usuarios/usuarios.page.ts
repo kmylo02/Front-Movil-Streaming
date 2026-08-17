@@ -277,10 +277,10 @@ export class UsuariosPage implements OnInit {
       }
       this.showModal.set(false);
       await this.load();
-      const t = await this.toastCtrl.create({ message: 'Guardado', duration: 2000, color: 'success' });
+      const t = await this.toastCtrl.create({ message: this.editando() ? 'Usuario actualizado ✅' : 'Usuario creado ✅', duration: 2000, color: 'success' });
       t.present();
     } catch (e: any) {
-      this.error.set(e?.error?.message || 'Error al guardar');
+      this.error.set(e?.error?.message || 'No pudimos guardar el usuario. Inténtalo de nuevo.');
     } finally { this.saving.set(false); }
   }
 
@@ -292,10 +292,10 @@ export class UsuariosPage implements OnInit {
       await new Promise<void>((res, rej) =>
         this.usuariosApi.resetPassword(this.seleccionado()!._id, this.newPassword).subscribe({ next: () => res(), error: rej }));
       this.showPasswordModal.set(false);
-      const t = await this.toastCtrl.create({ message: 'Contraseña restablecida', duration: 2000, color: 'success' });
+      const t = await this.toastCtrl.create({ message: '🔑 Contraseña restablecida', duration: 2000, color: 'success' });
       t.present();
     } catch (e: any) {
-      this.error.set(e?.error?.message || 'Error al restablecer la contraseña');
+      this.error.set(e?.error?.message || 'No pudimos restablecer la contraseña. Inténtalo de nuevo.');
     } finally { this.saving.set(false); }
   }
 
@@ -304,8 +304,10 @@ export class UsuariosPage implements OnInit {
     try {
       await new Promise<void>((res, rej) => this.usuariosApi.toggle(u._id, misId).subscribe({ next: () => res(), error: rej }));
       await this.load();
+      const t = await this.toastCtrl.create({ message: u.activo ? 'Usuario desactivado' : 'Usuario activado', duration: 2000, color: 'success' });
+      t.present();
     } catch (e: any) {
-      const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al cambiar estado', duration: 3000, color: 'danger' });
+      const t = await this.toastCtrl.create({ message: e?.error?.message || 'No pudimos cambiar el estado del usuario', duration: 3000, color: 'danger' });
       t.present();
     }
   }
@@ -313,16 +315,18 @@ export class UsuariosPage implements OnInit {
   async eliminar(u: Usuario) {
     const misId = this.auth.usuario()?.id || '';
     const alert = await this.alertCtrl.create({
-      header: 'Eliminar usuario',
-      message: `¿Eliminar a ${u.nombre}?`,
+      header: 'Eliminar este usuario',
+      message: `Se eliminará a ${u.nombre} del sistema y no podrá volver a iniciar sesión. Esta acción no se puede deshacer.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
-        { text: 'Eliminar', role: 'destructive', handler: async () => {
+        { text: 'Sí, eliminar', role: 'destructive', handler: async () => {
           try {
             await new Promise<void>((res, rej) => this.usuariosApi.delete(u._id, misId).subscribe({ next: () => res(), error: rej }));
             await this.load();
+            const t = await this.toastCtrl.create({ message: 'Usuario eliminado', duration: 2000, color: 'success' });
+            t.present();
           } catch (e: any) {
-            const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al eliminar', duration: 3000, color: 'danger' });
+            const t = await this.toastCtrl.create({ message: e?.error?.message || 'No pudimos eliminar el usuario', duration: 3000, color: 'danger' });
             t.present();
           }
         }},

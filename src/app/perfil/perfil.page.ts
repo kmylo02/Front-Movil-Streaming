@@ -175,20 +175,20 @@ export class PerfilPage implements OnInit {
       this.passNueva = '';
       this.passConfirm = '';
     } catch (e: any) {
-      this.passError.set(e?.error?.message || 'Error al cambiar contraseña');
+      this.passError.set(e?.error?.message || 'No pudimos cambiar la contraseña. Inténtalo de nuevo.');
     } finally { this.savingPass.set(false); }
   }
 
   async toggleBiometric(enabled: boolean) {
     if (!enabled) {
       await this.auth.setBiometricEnabled(false);
-      const t = await this.toastCtrl.create({ message: 'Huella desactivada', duration: 2000, color: 'dark' });
+      const t = await this.toastCtrl.create({ message: 'Huella digital desactivada', duration: 2000, color: 'dark' });
       t.present();
       return;
     }
     const alert = await this.alertCtrl.create({
-      header: 'Activar huella',
-      message: 'Ingresa tu contraseña para guardar las credenciales de forma segura',
+      header: 'Activar acceso con huella',
+      message: 'Confirma tu contraseña una vez para guardar tus credenciales de forma segura en este dispositivo.',
       inputs: [{ name: 'pass', type: 'password', placeholder: 'Contraseña' }],
       buttons: [
         { text: 'Cancelar', role: 'cancel', handler: () => { this.bioEnabled = false; } },
@@ -197,7 +197,7 @@ export class PerfilPage implements OnInit {
           handler: async (data) => {
             try {
               await this.auth.setBiometricEnabled(true, this.auth.usuario()!.username, data.pass);
-              const t = await this.toastCtrl.create({ message: 'Huella activada', duration: 2000, color: 'success' });
+              const t = await this.toastCtrl.create({ message: 'Huella digital activada ✅', duration: 2000, color: 'success' });
               t.present();
             } catch { this.bioEnabled = false; }
           },
@@ -210,10 +210,10 @@ export class PerfilPage implements OnInit {
   async logout() {
     const alert = await this.alertCtrl.create({
       header: 'Cerrar sesión',
-      message: '¿Estás seguro que deseas salir?',
+      message: 'Tendrás que volver a iniciar sesión la próxima vez que abras la app. ¿Quieres salir ahora?',
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
-        { text: 'Salir', role: 'destructive', handler: async () => {
+        { text: 'Sí, salir', role: 'destructive', handler: async () => {
           await this.auth.logout();
           this.navCtrl.navigateRoot('/login');
         }},

@@ -677,11 +677,11 @@ export class InventarioPage implements OnInit {
 
   async guardar() {
     if (!this.form.servicioId || !this.form.email || !this.form.clave) {
-      const t = await this.toastCtrl.create({ message: 'Completa plataforma, email y clave', duration: 2500, color: 'warning' });
+      const t = await this.toastCtrl.create({ message: 'Completa la plataforma, el email y la clave antes de guardar', duration: 2500, color: 'warning' });
       return t.present();
     }
     if (this.form.tipo === 'individual' && !this.form.perfilNumero) {
-      const t = await this.toastCtrl.create({ message: 'Indica el número de perfil', duration: 2500, color: 'warning' });
+      const t = await this.toastCtrl.create({ message: 'Indica qué número de perfil compraste antes de guardar', duration: 2500, color: 'warning' });
       return t.present();
     }
     this.saving.set(true);
@@ -705,7 +705,7 @@ export class InventarioPage implements OnInit {
       await new Promise<void>((res, rej) => op.subscribe({ next: () => res(), error: rej }));
       this.showModal.set(false);
       await this.load();
-      const t = await this.toastCtrl.create({ message: 'Guardado', duration: 2000, color: 'success' });
+      const t = await this.toastCtrl.create({ message: cuentaId ? 'Cuenta actualizada ✅' : 'Cuenta agregada ✅', duration: 2000, color: 'success' });
       t.present();
 
       if (claveCambio && cuentaId) {
@@ -720,7 +720,7 @@ export class InventarioPage implements OnInit {
     } catch (e: any) {
       const msg = e?.error?.message;
       const t = await this.toastCtrl.create({
-        message: Array.isArray(msg) ? msg.join(', ') : (msg || 'Error al guardar'),
+        message: Array.isArray(msg) ? msg.join(', ') : (msg || 'No pudimos guardar la cuenta. Inténtalo de nuevo.'),
         duration: 3500, color: 'danger',
       });
       t.present();
@@ -730,10 +730,10 @@ export class InventarioPage implements OnInit {
   async copiarMensaje(mensaje: string) {
     try {
       await Clipboard.write({ string: mensaje });
-      const t = await this.toastCtrl.create({ message: 'Mensaje copiado', duration: 1800, color: 'dark' });
+      const t = await this.toastCtrl.create({ message: 'Mensaje copiado al portapapeles 📋', duration: 1800, color: 'dark' });
       t.present();
     } catch {
-      const t = await this.toastCtrl.create({ message: 'No se pudo copiar', duration: 1800, color: 'danger' });
+      const t = await this.toastCtrl.create({ message: 'No pudimos copiar el mensaje', duration: 1800, color: 'danger' });
       t.present();
     }
   }
@@ -743,23 +743,25 @@ export class InventarioPage implements OnInit {
       await new Promise<void>((res, rej) => this.inventarioApi.toggle(c._id).subscribe({ next: () => res(), error: rej }));
       await this.load();
     } catch (e: any) {
-      const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al cambiar estado', duration: 3000, color: 'danger' });
+      const t = await this.toastCtrl.create({ message: e?.error?.message || 'No pudimos cambiar el estado de la cuenta', duration: 3000, color: 'danger' });
       t.present();
     }
   }
 
   async eliminar(c: Cuenta) {
     const alert = await this.alertCtrl.create({
-      header: 'Eliminar cuenta',
-      message: `¿Eliminar ${c.email}?`,
+      header: 'Eliminar esta cuenta',
+      message: `Se eliminará ${c.email} y no podrás recuperarla. Las ventas asociadas quedarán sin cuenta asignada.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
-        { text: 'Eliminar', role: 'destructive', handler: async () => {
+        { text: 'Sí, eliminar', role: 'destructive', handler: async () => {
           try {
             await new Promise<void>((res, rej) => this.inventarioApi.delete(c._id).subscribe({ next: () => res(), error: rej }));
             await this.load();
+            const t = await this.toastCtrl.create({ message: 'Cuenta eliminada', duration: 2000, color: 'success' });
+            t.present();
           } catch (e: any) {
-            const t = await this.toastCtrl.create({ message: e?.error?.message || 'Error al eliminar', duration: 3000, color: 'danger' });
+            const t = await this.toastCtrl.create({ message: e?.error?.message || 'No pudimos eliminar la cuenta', duration: 3000, color: 'danger' });
             t.present();
           }
         }},
