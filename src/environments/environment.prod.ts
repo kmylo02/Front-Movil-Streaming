@@ -1,7 +1,8 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://back-streaming-75se.onrender.com/api',
-  // URL del segundo backend (otra cuenta de Render) usado como respaldo
-  // automatico cuando el principal se queda sin horas del plan gratuito.
-  apiUrlBackup: 'https://back-streaming-az3t.onrender.com/api',
+  // Backend principal en Railway (dominio propio)
+  apiUrl: 'https://service-mundostream.kodivo.es/api',
+  // Respaldo automatico (Render) si el principal no responde.
+  // Quitar cuando Railway este estable y se apague Render.
+  apiUrlBackup: 'https://back-streaming-75se.onrender.com/api',
 };
