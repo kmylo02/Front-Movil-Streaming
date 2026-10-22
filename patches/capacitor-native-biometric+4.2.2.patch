@@ -1,0 +1,29 @@
+diff --git a/node_modules/capacitor-native-biometric/android/build.gradle b/node_modules/capacitor-native-biometric/android/build.gradle
+index ab45e43..7b00371 100644
+--- a/node_modules/capacitor-native-biometric/android/build.gradle
++++ b/node_modules/capacitor-native-biometric/android/build.gradle
+@@ -4,16 +4,6 @@ ext {
+     androidxEspressoCoreVersion = project.hasProperty('androidxEspressoCoreVersion') ? rootProject.ext.androidxEspressoCoreVersion : '3.2.0'
+ }
+ 
+-buildscript {
+-    repositories {
+-        google()
+-        jcenter()
+-    }
+-    dependencies {
+-        classpath 'com.android.tools.build:gradle:3.6.1'
+-    }
+-}
+-
+ apply plugin: 'com.android.library'
+ 
+ android {
+@@ -39,7 +29,6 @@ android {
+ 
+ repositories {
+     google()
+-    jcenter()
+     mavenCentral()
+ }
+ 
