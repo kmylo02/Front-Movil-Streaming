@@ -5,6 +5,7 @@ import { Preferences } from '@capacitor/preferences';
 import { firstValueFrom } from 'rxjs';
 import { NativeBiometric } from 'capacitor-native-biometric';
 import { environment } from '../../../environments/environment';
+import { cifrarLogin, LoginKey } from '../utils/login-crypto';
 
 const API = environment.apiUrl;
 const BIO_SERVER = 'streammanager.pro';
@@ -51,8 +52,11 @@ export class AuthService {
   isLoggedIn(): boolean { return !!this._token; }
 
   async login(username: string, password: string): Promise<void> {
+    // Se pide la llave pública en cada login: si el servidor la rotó, siempre se usa la vigente.
+    const key = await firstValueFrom(this.http.get<LoginKey>(`${API}/auth/login-key`));
+    const body = await cifrarLogin(key, username, password);
     const resp = await firstValueFrom(
-      this.http.post<{ access_token: string; usuario: UsuarioSesion }>(`${API}/auth/login`, { username, password })
+      this.http.post<{ access_token: string; usuario: UsuarioSesion }>(`${API}/auth/login`, body)
     );
     this._token = resp.access_token;
     await Preferences.set({ key: 'sm_token', value: resp.access_token });
