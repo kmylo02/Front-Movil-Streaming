@@ -35,3 +35,6 @@
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
 @import '@ionic/angular/css/palettes/dark.system.css';
+
+/* Alerts con texto multilínea (recordatorios WhatsApp) */
+.alert-pre .alert-message { white-space: pre-line; text-align: left; }

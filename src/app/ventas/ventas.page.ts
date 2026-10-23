@@ -12,8 +12,8 @@ import {
   addOutline, refreshOutline, trashOutline, pencilOutline, closeOutline,
   filmOutline, calendarOutline, chevronForwardOutline, ellipsisVerticalOutline,
   pauseCircleOutline, playCircleOutline, chatbubbleOutline, copyOutline, checkmarkOutline,
-} from 'ionicons/icons';
-import { VentasApiService, Venta, ClientesApiService, Cliente, ServiciosApiService, Servicio, InventarioApiService } from '../core/services/api.service';
+  logoWhatsapp } from 'ionicons/icons';
+import { VentasApiService, Venta, ClientesApiService, Cliente, ServiciosApiService, Servicio, InventarioApiService, NotificacionesApiService, Notificacion, TIPO_RECORDATORIO_LABEL, ESTADO_RECORDATORIO_LABEL } from '../core/services/api.service';
 import { VentaEventsService } from '../core/services/venta-events.service';
 import { NavController } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
@@ -156,6 +156,7 @@ export class VentasPage implements OnInit {
       { text: 'Editar', icon: 'pencil-outline', handler: () => this.navCtrl.navigateForward(`/tabs/ventas/editar/${v._id}`) },
       { text: 'Renovar', icon: 'refresh-outline', handler: () => this.renovar(v) },
       { text: 'Ver mensaje', icon: 'chatbubble-outline', handler: () => this.copiarMensaje(v) },
+      { text: 'Recordatorios WhatsApp', icon: 'logo-whatsapp', handler: () => this.verRecordatorios(v) },
     ];
     if (v.estado === 'pausada') {
       btns.push({ text: 'Reactivar', icon: 'play-circle-outline', handler: () => this.reactivar(v) });
@@ -176,10 +177,11 @@ export class VentasPage implements OnInit {
     private alertCtrl: AlertController,
     private loadingCtrl: LoadingController,
     private toastCtrl: ToastController,
+    private notificacionesApi: NotificacionesApiService,
   ) {
     addIcons({ addOutline, refreshOutline, trashOutline, pencilOutline, closeOutline,
       filmOutline, calendarOutline, chevronForwardOutline, ellipsisVerticalOutline,
-      pauseCircleOutline, playCircleOutline, chatbubbleOutline, copyOutline, checkmarkOutline });
+      pauseCircleOutline, playCircleOutline, chatbubbleOutline, copyOutline, checkmarkOutline, logoWhatsapp });
   }
 
   ngOnInit() {
@@ -299,6 +301,73 @@ export class VentasPage implements OnInit {
     await confirm.present();
   }
 
+  async verRecordatorios(v: Venta) {
+    const loading = await this.loadingCtrl.create({ message: 'Cargando…' });
+    await loading.present();
+    let lista: Notificacion[] = [];
+    try {
+      lista = await new Promise<Notificacion[]>((res, rej) => this.notificacionesApi.historial(v._id).subscribe({ next: res, error: rej }));
+    } catch {
+      loading.dismiss();
+      this.toast('No pudimos cargar los recordatorios', 'danger');
+      return;
+    }
+    loading.dismiss();
+
+    const fecha = (iso: string) => new Date(iso).toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    // Texto plano (Ionic 8 no interpreta HTML en alerts); .alert-pre respeta los saltos de línea.
+    const filas = lista.length
+      ? lista
+          .map((n) => {
+            const origen = n.origen === 'manual' ? 'manual' : 'automático';
+            const lineas = [
+              `• ${TIPO_RECORDATORIO_LABEL[n.tipo]} — ${ESTADO_RECORDATORIO_LABEL[n.estado]} (${origen})`,
+              `   ${fecha(n.createdAt)}`,
+            ];
+            if (n.error) lineas.push(`   ${n.error}`);
+            return lineas.join('\n');
+          })
+          .join('\n\n')
+      : 'Aún no se han enviado recordatorios para esta venta.';
+
+    const alert = await this.alertCtrl.create({
+      header: 'Recordatorios WhatsApp',
+      cssClass: 'alert-pre',
+      subHeader: 'Automático: 1 día antes, el día y 1 día después (12:00 m.)',
+      message: filas,
+      buttons: [
+        { text: 'Cerrar', role: 'cancel' },
+        { text: 'Enviar ahora', handler: () => { this.enviarRecordatorio(v); } },
+      ],
+    });
+    await alert.present();
+  }
+
+  async enviarRecordatorio(v: Venta) {
+    const confirm = await this.alertCtrl.create({
+      header: 'Enviar recordatorio',
+      message: `Se enviará a ${v.nombreCliente} un recordatorio de vencimiento por WhatsApp.`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Sí, enviar',
+          handler: async () => {
+            const loading = await this.loadingCtrl.create({ message: 'Enviando…' });
+            await loading.present();
+            try {
+              const n = await new Promise<Notificacion>((res, rej) => this.notificacionesApi.enviarRecordatorio(v._id).subscribe({ next: res, error: rej }));
+              if (n?.estado === 'enviado') this.toast('Recordatorio enviado por WhatsApp ✅');
+              else this.toast('No se envió: ' + (n?.error || 'revisa el historial'), 'danger');
+            } catch (e: any) {
+              this.toast(e?.error?.message || 'No pudimos enviar el recordatorio', 'danger');
+            } finally { loading.dismiss(); }
+          },
+        },
+      ],
+    });
+    await confirm.present();
+  }
+
   async copiarMensaje(v: Venta) {
     try {
       const { Clipboard } = await import('@capacitor/clipboard');
@@ -311,7 +380,8 @@ export class VentasPage implements OnInit {
     const alert = await this.alertCtrl.create({
       header: '✅ Venta renovada',
       subHeader: 'Mensaje para el cliente',
-      message: mensaje.replace(/\n/g, '<br>'),
+      cssClass: 'alert-pre',
+      message: mensaje,
       buttons: [
         { text: 'Cerrar', role: 'cancel' },
         {

@@ -267,3 +267,42 @@ export class ReportsApiService {
     return this.http.get<PlataformasReport>(`${API}/reports/plataformas`);
   }
 }
+
+export interface Notificacion {
+  _id: string;
+  ventaId: string;
+  nombreCliente: string;
+  telefono?: string;
+  tipo: 'antes_1d' | 'hoy' | 'vencida_1d';
+  fechaVencimiento: string;
+  estado: 'pendiente' | 'enviado' | 'error' | 'omitido';
+  origen: 'automatico' | 'manual';
+  error?: string;
+  intentos: number;
+  createdAt: string;
+}
+
+@Injectable({ providedIn: 'root' })
+export class NotificacionesApiService {
+  constructor(private http: HttpClient) {}
+  historial(ventaId?: string) {
+    const params = ventaId ? new HttpParams().set('ventaId', ventaId) : undefined;
+    return this.http.get<Notificacion[]>(`${API}/notificaciones`, { params });
+  }
+  enviarRecordatorio(ventaId: string) {
+    return this.http.post<Notificacion>(`${API}/notificaciones/ventas/${ventaId}/enviar`, {});
+  }
+}
+
+export const TIPO_RECORDATORIO_LABEL: Record<Notificacion['tipo'], string> = {
+  antes_1d: 'Vence mañana',
+  hoy: 'Vence hoy',
+  vencida_1d: 'Venció ayer',
+};
+
+export const ESTADO_RECORDATORIO_LABEL: Record<Notificacion['estado'], string> = {
+  enviado: 'Enviado',
+  error: 'Error',
+  omitido: 'Omitido',
+  pendiente: 'Pendiente',
+};
