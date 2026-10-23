@@ -276,7 +276,7 @@ export interface Notificacion {
   tipo: 'antes_1d' | 'hoy' | 'vencida_1d';
   fechaVencimiento: string;
   estado: 'pendiente' | 'enviado' | 'error' | 'omitido';
-  origen: 'automatico' | 'manual';
+  origen: 'automatico' | 'manual' | 'whatsapp_app';
   error?: string;
   intentos: number;
   createdAt: string;
@@ -292,6 +292,35 @@ export class NotificacionesApiService {
   enviarRecordatorio(ventaId: string) {
     return this.http.post<Notificacion>(`${API}/notificaciones/ventas/${ventaId}/enviar`, {});
   }
+  agenda() { return this.http.get<AgendaRecordatorios>(`${API}/notificaciones/agenda`); }
+  mensajeVenta(ventaId: string) {
+    return this.http.get<MensajeWhatsapp>(`${API}/notificaciones/ventas/${ventaId}/mensaje`);
+  }
+  registrarWhatsappApp(ventaId: string) {
+    return this.http.post<Notificacion>(`${API}/notificaciones/ventas/${ventaId}/registrar-whatsapp-app`, {});
+  }
+}
+
+export interface MensajeWhatsapp {
+  tipo: Notificacion['tipo'];
+  apiConfigurada: boolean;
+  telefono: string | null;
+  mensaje: string;
+  enlace: string | null; // https://wa.me/... con el mensaje escrito
+}
+
+export interface ItemAgenda extends Omit<MensajeWhatsapp, 'apiConfigurada'> {
+  ventaId: string;
+  nombreCliente: string;
+  servicios: string;
+  fechaVencimiento: string; // dd/mm/aaaa
+  contactado: { via: 'api' | 'whatsapp_app'; fecha: string; usuario?: string } | null;
+}
+
+export interface AgendaRecordatorios {
+  fecha: string;
+  apiConfigurada: boolean;
+  items: ItemAgenda[];
 }
 
 export const TIPO_RECORDATORIO_LABEL: Record<Notificacion['tipo'], string> = {

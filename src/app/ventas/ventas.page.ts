@@ -13,7 +13,7 @@ import {
   filmOutline, calendarOutline, chevronForwardOutline, ellipsisVerticalOutline,
   pauseCircleOutline, playCircleOutline, chatbubbleOutline, copyOutline, checkmarkOutline,
   logoWhatsapp } from 'ionicons/icons';
-import { VentasApiService, Venta, ClientesApiService, Cliente, ServiciosApiService, Servicio, InventarioApiService, NotificacionesApiService, Notificacion, TIPO_RECORDATORIO_LABEL, ESTADO_RECORDATORIO_LABEL } from '../core/services/api.service';
+import { VentasApiService, Venta, ClientesApiService, Cliente, ServiciosApiService, Servicio, InventarioApiService, NotificacionesApiService, Notificacion, MensajeWhatsapp, TIPO_RECORDATORIO_LABEL, ESTADO_RECORDATORIO_LABEL } from '../core/services/api.service';
 import { VentaEventsService } from '../core/services/venta-events.service';
 import { NavController } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
@@ -305,8 +305,12 @@ export class VentasPage implements OnInit {
     const loading = await this.loadingCtrl.create({ message: 'Cargando…' });
     await loading.present();
     let lista: Notificacion[] = [];
+    let wa: MensajeWhatsapp | null = null;
     try {
-      lista = await new Promise<Notificacion[]>((res, rej) => this.notificacionesApi.historial(v._id).subscribe({ next: res, error: rej }));
+      [lista, wa] = await Promise.all([
+        new Promise<Notificacion[]>((res, rej) => this.notificacionesApi.historial(v._id).subscribe({ next: res, error: rej })),
+        new Promise<MensajeWhatsapp>((res, rej) => this.notificacionesApi.mensajeVenta(v._id).subscribe({ next: res, error: rej })),
+      ]);
     } catch {
       loading.dismiss();
       this.toast('No pudimos cargar los recordatorios', 'danger');
@@ -319,7 +323,7 @@ export class VentasPage implements OnInit {
     const filas = lista.length
       ? lista
           .map((n) => {
-            const origen = n.origen === 'manual' ? 'manual' : 'automático';
+            const origen = { manual: 'manual', automatico: 'automático', whatsapp_app: 'WhatsApp Business' }[n.origen];
             const lineas = [
               `• ${TIPO_RECORDATORIO_LABEL[n.tipo]} — ${ESTADO_RECORDATORIO_LABEL[n.estado]} (${origen})`,
               `   ${fecha(n.createdAt)}`,
@@ -330,17 +334,29 @@ export class VentasPage implements OnInit {
           .join('\n\n')
       : 'Aún no se han enviado recordatorios para esta venta.';
 
+    const botones: any[] = [{ text: 'Cerrar', role: 'cancel' }];
+    if (wa?.enlace) botones.push({ text: 'Abrir en WhatsApp', handler: () => { this.abrirWhatsapp(v, wa!.enlace!); } });
+    if (wa?.apiConfigurada) botones.push({ text: 'Enviar automático', handler: () => { this.enviarRecordatorio(v); } });
+
     const alert = await this.alertCtrl.create({
       header: 'Recordatorios WhatsApp',
       cssClass: 'alert-pre',
-      subHeader: 'Automático: 1 día antes, el día y 1 día después (12:00 m.)',
+      subHeader: wa?.apiConfigurada
+        ? 'Automático: 1 día antes, el día y 1 día después (12:00 m.)'
+        : wa?.enlace ? 'Envía desde tu WhatsApp Business' : 'El cliente no tiene un WhatsApp válido',
       message: filas,
-      buttons: [
-        { text: 'Cerrar', role: 'cancel' },
-        { text: 'Enviar ahora', handler: () => { this.enviarRecordatorio(v); } },
-      ],
+      buttons: botones,
     });
     await alert.present();
+  }
+
+  /** Abre WhatsApp Business con el mensaje escrito y registra el contacto. */
+  abrirWhatsapp(v: Venta, enlace: string) {
+    if (!enlace.startsWith('https://wa.me/')) return;
+    window.open(enlace, '_blank', 'noopener,noreferrer');
+    this.notificacionesApi.registrarWhatsappApp(v._id).subscribe({
+      error: () => this.toast('Se abrió WhatsApp, pero no se pudo registrar el contacto', 'danger'),
+    });
   }
 
   async enviarRecordatorio(v: Venta) {

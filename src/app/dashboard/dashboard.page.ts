@@ -16,6 +16,7 @@ import {
 import { ReportsApiService, Dashboard, FinancieroMes, MovimientosMes } from '../core/services/api.service';
 import { VentaEventsService } from '../core/services/venta-events.service';
 import { AuthService } from '../core/services/auth.service';
+import { RecordatoriosHoyComponent } from './recordatorios-hoy.component';
 
 @Component({
   selector: 'app-dashboard',
@@ -25,7 +26,7 @@ import { AuthService } from '../core/services/auth.service';
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonRefresher, IonRefresherContent, IonCard, IonCardContent, IonBadge,
     IonGrid, IonRow, IonCol, IonItem, IonLabel, IonModal, IonList,
-    IonProgressBar, IonSpinner, IonNote,
+    IonProgressBar, IonSpinner, IonNote, RecordatoriosHoyComponent,
   ],
   template: `
     <ion-header>
@@ -134,6 +135,9 @@ import { AuthService } from '../core/services/auth.service';
             </ion-card-content>
           </ion-card>
         }
+
+        <!-- Recordatorios WhatsApp del día -->
+        <app-recordatorios-hoy />
 
         <!-- Alerts -->
         @if (data()!.alertas.length > 0) {
