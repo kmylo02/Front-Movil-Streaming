@@ -8,8 +8,8 @@ import {
   IonSpinner, IonSearchbar, IonTextarea, AlertController, LoadingController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { addOutline, closeOutline, checkmarkOutline, pencilOutline, trashOutline, eyeOutline, copyOutline } from 'ionicons/icons';
-import { InventarioApiService, ServiciosApiService, Cuenta, Servicio } from '../core/services/api.service';
+import { addOutline, closeOutline, checkmarkOutline, pencilOutline, trashOutline, eyeOutline, copyOutline, refreshOutline } from 'ionicons/icons';
+import { InventarioApiService, ServiciosApiService, Cuenta, Servicio, RenovarCuentaDto } from '../core/services/api.service';
 import { AuthService } from '../core/services/auth.service';
 import { formatoPesos, parsePesos } from '../core/utils/moneda.util';
 import { Clipboard } from '@capacitor/clipboard';
@@ -118,6 +118,9 @@ import { Clipboard } from '@capacitor/clipboard';
                 </button>
                 <button class="act-btn" (click)="openModal(c)">
                   <ion-icon name="pencil-outline"></ion-icon>
+                </button>
+                <button class="act-btn" (click)="renovar(c)" aria-label="Renovar cuenta">
+                  <ion-icon name="refresh-outline"></ion-icon>
                 </button>
                 <button class="act-btn act-toggle" (click)="toggleCuenta(c)">
                   {{ c.activa ? 'Desactivar' : 'Activar' }}
@@ -524,7 +527,7 @@ export class InventarioPage implements OnInit {
     private toastCtrl: ToastController,
     private auth: AuthService,
   ) {
-    addIcons({ addOutline, closeOutline, checkmarkOutline, pencilOutline, trashOutline, eyeOutline, copyOutline });
+    addIcons({ addOutline, closeOutline, checkmarkOutline, pencilOutline, trashOutline, eyeOutline, copyOutline, refreshOutline });
   }
 
   ngOnInit() {
@@ -745,6 +748,95 @@ export class InventarioPage implements OnInit {
     } catch (e: any) {
       const t = await this.toastCtrl.create({ message: e?.error?.message || 'No pudimos cambiar el estado de la cuenta', duration: 3000, color: 'danger' });
       t.present();
+    }
+  }
+
+  // --- Renovar cuenta (paridad con web) ---
+  private hoyIso(): string {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+
+  /** Misma regla del backend: vigente se extiende desde su vencimiento; vencida, desde hoy. */
+  private nuevoVencimiento(c: Cuenta, meses: number): string {
+    const hoy = this.hoyIso();
+    const venc = c.fechaVencimientoCuenta ? String(c.fechaVencimientoCuenta).slice(0, 10) : '';
+    const desde = venc && venc >= hoy ? venc : hoy;
+    const [a, m, d] = desde.split('-').map(Number);
+    const o = new Date(Date.UTC(a, m - 1 + meses, 1, 12));
+    o.setUTCDate(Math.min(d, new Date(Date.UTC(o.getUTCFullYear(), o.getUTCMonth() + 1, 0)).getUTCDate()));
+    return o.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  async renovar(c: Cuenta) {
+    const ultima = c.renovaciones?.[c.renovaciones.length - 1];
+    const sugerida = ultima?.duracionMeses ?? 1;
+    const paso1 = await this.alertCtrl.create({
+      header: `Renovar ${c.nombreServicio}`,
+      subHeader: c.email,
+      inputs: [
+        { type: 'radio', label: 'Mensual', value: 1, checked: sugerida === 1 },
+        { type: 'radio', label: 'Trimestral', value: 3, checked: sugerida === 3 },
+        { type: 'radio', label: 'Semestral', value: 6, checked: sugerida === 6 },
+        { type: 'radio', label: 'Anual', value: 12, checked: sugerida === 12 },
+      ],
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Siguiente', handler: (meses: number) => { this.renovarDatos(c, Number(meses) || 1); } },
+      ],
+    });
+    await paso1.present();
+  }
+
+  private async renovarDatos(c: Cuenta, meses: number) {
+    const valor = c.valorCuenta ?? c.valorPantalla ?? 0;
+    const paso2 = await this.alertCtrl.create({
+      header: 'Datos de la renovación',
+      subHeader: `Nuevo vencimiento: ${this.nuevoVencimiento(c, meses)}`,
+      inputs: [
+        { name: 'monto', type: 'number', placeholder: 'Valor pagado', value: valor || '', min: 0 },
+        { name: 'fechaPago', type: 'date', value: this.hoyIso(), max: this.hoyIso() },
+        { name: 'nuevaClave', type: 'text', placeholder: 'Clave nueva (solo si cambió)' },
+      ],
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Renovar',
+          handler: (data: { monto: string; fechaPago: string; nuevaClave: string }) => {
+            const monto = Number(data.monto);
+            if (!monto || monto <= 0) {
+              this.toastCtrl.create({ message: 'Ingresa el valor pagado', duration: 2200, color: 'warning' }).then((t) => t.present());
+              return false; // mantiene el diálogo abierto
+            }
+            const nuevaClave = (data.nuevaClave || '').trim();
+            if (nuevaClave && nuevaClave.length < 4) {
+              this.toastCtrl.create({ message: 'La clave nueva debe tener al menos 4 caracteres', duration: 2200, color: 'warning' }).then((t) => t.present());
+              return false;
+            }
+            this.enviarRenovacion(c, { duracionMeses: meses, monto, fechaPago: data.fechaPago || undefined, nuevaClave: nuevaClave || undefined });
+            return true;
+          },
+        },
+      ],
+    });
+    await paso2.present();
+  }
+
+  private async enviarRenovacion(c: Cuenta, dto: RenovarCuentaDto) {
+    const loading = await this.loadingCtrl.create({ message: 'Renovando…' });
+    await loading.present();
+    try {
+      const act = await new Promise<Cuenta>((res, rej) => this.inventarioApi.renovar(c._id, dto).subscribe({ next: res, error: rej }));
+      await this.load();
+      const hasta = new Date(String(act.fechaVencimientoCuenta)).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+      const t = await this.toastCtrl.create({ message: `Cuenta renovada hasta ${hasta} ✅`, duration: 2500, color: 'success' });
+      t.present();
+    } catch (e: any) {
+      const msg = e?.error?.message;
+      const t = await this.toastCtrl.create({ message: (Array.isArray(msg) ? msg.join('. ') : msg) || 'No pudimos renovar la cuenta', duration: 3000, color: 'danger' });
+      t.present();
+    } finally {
+      loading.dismiss();
     }
   }
 

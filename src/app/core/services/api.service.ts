@@ -65,6 +65,24 @@ export interface Cuenta {
   renovable?: boolean;
   valorCuenta?: number;
   valorPantalla?: number;
+  renovaciones?: RenovacionCuenta[];
+}
+
+export interface RenovacionCuenta {
+  fecha: string;
+  monto: number;
+  duracionMeses: number;
+  periodoDesde: string;
+  periodoHasta: string;
+  usuarioNombre?: string;
+  cambioClave?: boolean;
+}
+
+export interface RenovarCuentaDto {
+  duracionMeses: number;
+  monto: number;
+  fechaPago?: string; // aaaa-mm-dd
+  nuevaClave?: string;
 }
 
 export interface Servicio {
@@ -206,6 +224,7 @@ export class InventarioApiService {
   create(dto: any) { return this.http.post<Cuenta>(`${API}/inventario`, dto); }
   update(id: string, dto: any) { return this.http.patch<Cuenta>(`${API}/inventario/${id}`, dto); }
   toggle(id: string) { return this.http.patch<Cuenta>(`${API}/inventario/${id}/toggle`, {}); }
+  renovar(id: string, dto: RenovarCuentaDto) { return this.http.patch<Cuenta>(`${API}/inventario/${id}/renovar`, dto); }
   delete(id: string) { return this.http.delete(`${API}/inventario/${id}`); }
   getClientesAfectados(id: string) { return this.http.get<any[]>(`${API}/inventario/${id}/clientes-afectados`); }
 }
