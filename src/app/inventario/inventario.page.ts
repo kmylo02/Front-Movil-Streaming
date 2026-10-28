@@ -192,13 +192,13 @@ import { Clipboard } from '@capacitor/clipboard';
                 <ion-input [(ngModel)]="form.totalPerfiles" type="number" placeholder="4" (ionChange)="actualizarClaves()"></ion-input>
               </ion-item>
             }
-            @if ((form.totalPerfiles || 0) > 0 && form.tipo !== 'individual' && servicioRequiereClave()) {
+            @if ((form.totalPerfiles || 0) > 0 || form.tipo === 'individual') {
               <div class="claves-perfil-block">
                 <div class="claves-perfil-title">Claves por perfil (opcional)</div>
                 <div class="claves-grid">
                   @for (i of perfilesRange(); track i) {
                     <ion-item class="f-item claves-item" lines="none">
-                      <ion-label position="stacked">Perfil {{ i + 1 }}</ion-label>
+                      <ion-label position="stacked">Perfil {{ form.tipo === 'individual' ? (form.perfilNumero || 1) : i + 1 }}</ion-label>
                       <ion-input [(ngModel)]="clavesPerfil[i]" placeholder="PIN"></ion-input>
                     </ion-item>
                   }
@@ -451,9 +451,6 @@ export class InventarioPage implements OnInit {
   ordenarPor = signal('vencimiento');
   detalleModal = signal<Cuenta | null>(null);
 
-  servicioRequiereClave = computed(() =>
-    this.servicios().find(s => s._id === this.selectedServicioId())?.requiereClavePerfil ?? false
-  );
 
   showAfectados = signal(false);
   clientesAfectados = signal<any[]>([]);
@@ -691,8 +688,10 @@ export class InventarioPage implements OnInit {
     const claveNueva = this.form.clave;
     const claveCambio = !!this.editando() && !!claveNueva && claveNueva !== this.claveOriginal;
     const cuentaId = this.editando()?._id;
+    // Solo campos editables: la cuenta completa (perfiles, _id...) no se reenvía.
+    const { perfiles: _p, renovaciones: _r, _id: _i, createdAt: _c, updatedAt: _u, __v: _v, ...editable } = this.form as any;
     const dto: any = {
-      ...this.form,
+      ...editable,
       totalPerfiles: Number(this.form.totalPerfiles) || 0,
       perfilNumero: this.form.tipo === 'individual' ? Number(this.form.perfilNumero) : undefined,
       valorCuenta: this.form.valorCuenta != null && (this.form.valorCuenta as any) !== '' ? Number(this.form.valorCuenta) : undefined,
