@@ -164,6 +164,7 @@ export class VentasPage implements OnInit {
       btns.push({ text: 'Pausar', icon: 'pause-circle-outline', handler: () => this.pausar(v) });
     }
     btns.push({ text: 'Cancelar venta', icon: 'close-outline', role: 'destructive', handler: () => this.cancelar(v) });
+    btns.push({ text: 'Eliminar venta', icon: 'trash-outline', role: 'destructive', handler: () => this.eliminar(v) });
     btns.push({ text: 'Cerrar', role: 'cancel' });
     return btns;
   });
@@ -376,6 +377,34 @@ export class VentasPage implements OnInit {
               else this.toast('No se envió: ' + (n?.error || 'revisa el historial'), 'danger');
             } catch (e: any) {
               this.toast(e?.error?.message || 'No pudimos enviar el recordatorio', 'danger');
+            } finally { loading.dismiss(); }
+          },
+        },
+      ],
+    });
+    await confirm.present();
+  }
+
+  /** Elimina la venta por completo (paridad con web). El backend libera sus perfiles. */
+  async eliminar(v: Venta) {
+    const confirm = await this.alertCtrl.create({
+      header: 'Eliminar esta venta',
+      message: `Se eliminará por completo el registro de ${v.nombreCliente} y no podrás recuperarlo. Los perfiles quedarán libres en el inventario.`,
+      buttons: [
+        { text: 'No, mantenerla', role: 'cancel' },
+        {
+          text: 'Sí, eliminar',
+          role: 'destructive',
+          handler: async () => {
+            const loading = await this.loadingCtrl.create({ message: 'Eliminando…' });
+            await loading.present();
+            try {
+              await new Promise<void>((res, rej) => this.ventasApi.eliminar(v._id).subscribe({ next: () => res(), error: rej }));
+              await this.load();
+              this.ventaEvents.notificar();
+              this.toast('Venta eliminada');
+            } catch (e: any) {
+              this.toast(e?.error?.message || 'No pudimos eliminar la venta. Inténtalo de nuevo.', 'danger');
             } finally { loading.dismiss(); }
           },
         },

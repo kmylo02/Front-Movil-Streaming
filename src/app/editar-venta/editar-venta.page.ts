@@ -137,7 +137,7 @@ interface ServicioEditForm {
                 </ion-item>
                 @if (getServicio(sf.nombreServicio)?.requiereNumeroPerfil !== false) {
                   <ion-item class="f-item" lines="none">
-                    <ion-select [(ngModel)]="sf.numeroPerfil" placeholder="N° perfil" interface="popover">
+                    <ion-select [ngModel]="sf.numeroPerfil" (ngModelChange)="cambiarPerfil(sf, $event)" placeholder="N° perfil" interface="popover">
                       @for (p of sf.perfilesDisponibles; track p.numero) {
                         <ion-select-option [value]="p.numero">Perfil {{ p.numero }}</ion-select-option>
                       }
@@ -389,6 +389,12 @@ export class EditarVentaPage implements OnInit {
       this.serviciosForm().length > 0 && !!this.monto;
   }
 
+  /** Al cambiar de perfil se carga el PIN de ese perfil (no se arrastra el del anterior). */
+  cambiarPerfil(sf: ServicioEditForm, numero: number | null) {
+    sf.numeroPerfil = numero == null ? null : Number(numero);
+    sf.clavePerfil = sf.perfilesDisponibles.find((p) => p.numero === sf.numeroPerfil)?.clavePerfil || '';
+  }
+
   async guardar() {
     const sinCuenta = this.serviciosForm().find(sf => !sf.cuentaId);
     if (sinCuenta) {
@@ -419,7 +425,8 @@ export class EditarVentaPage implements OnInit {
           emailCuenta: sf.emailCuenta,
           claveCuenta: sf.claveCuenta,
           numeroPerfil: sf.numeroPerfil,
-          clavePerfil: sf.clavePerfil || undefined,
+          // '' = sin PIN (permite borrarlo); el backend lo guarda también en el inventario
+          clavePerfil: (sf.clavePerfil ?? '').trim(),
         })),
       };
       const ventaActualizada = await new Promise<any>((res, rej) =>

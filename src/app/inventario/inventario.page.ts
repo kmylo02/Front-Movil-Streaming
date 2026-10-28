@@ -697,7 +697,7 @@ export class InventarioPage implements OnInit {
       perfilNumero: this.form.tipo === 'individual' ? Number(this.form.perfilNumero) : undefined,
       valorCuenta: this.form.valorCuenta != null && (this.form.valorCuenta as any) !== '' ? Number(this.form.valorCuenta) : undefined,
       valorPantalla: this.form.valorPantalla != null && (this.form.valorPantalla as any) !== '' ? Number(this.form.valorPantalla) : undefined,
-      clavesPerfil: this.clavesPerfil.filter(Boolean),
+      clavesPerfil: this.clavesPerfil.map(p => (p ?? "").trim()),
     };
     if (!cuentaId) {
       dto.operadorId = this.auth.usuario()?.id;
